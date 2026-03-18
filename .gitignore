@@ -1,0 +1,60 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+
+# =========================
+# Build outputs
+# =========================
+.next/
+out/
+dist/
+build/
+
+# =========================
+# Environment files
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs & Debug
+# =========================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# =========================
+# OS / Editor junk
+# =========================
+.DS_Store
+Thumbs.db
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Vercel
+# =========================
+.vercel
+
+# =========================
+# Security / Secrets
+# =========================
+*.pem
+*.key
+*.crt
+
+# =========================
+# Optional
+# =========================
+coverage/
