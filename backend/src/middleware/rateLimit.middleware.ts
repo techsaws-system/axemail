@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /**
  * Always return JSON on 429
@@ -11,17 +11,21 @@ const json429 = (req: any, res: any) => {
 };
 
 /**
- * Use userId if authenticated.
- * Fallback to IP for unauthenticated routes.
+ * Use userId if authenticated
+ * fallback to safe IP key generator
  */
 const keyByUserOrIp = (req: any) => {
     const userId = req.user?.userId;
-    return userId ? `uid:${userId}` : `ip:${req.ip}`;
+
+    if (userId) {
+        return `uid:${userId}`;
+    }
+
+    return ipKeyGenerator(req);
 };
 
 /**
  * Auth limiter (login, refresh)
- * Stricter to prevent brute force
  */
 export const authRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -43,7 +47,7 @@ export const apiRateLimiter = rateLimit({
 });
 
 /**
- * Mail sending limiter (per user)
+ * Mail sending limiter
  */
 export const mailRateLimiter = rateLimit({
     windowMs: 60 * 1000,
