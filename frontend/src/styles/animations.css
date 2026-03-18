@@ -1,9 +1,5 @@
-@keyframes loader {
-  0% {
-    transform: rotateX(-30deg) rotateY(0);
-  }
-
-  100% {
-    transform: rotateX(-30deg) rotateY(360deg);
+@keyframes loading {
+  to {
+    transform: rotate(360deg);
   }
 }
