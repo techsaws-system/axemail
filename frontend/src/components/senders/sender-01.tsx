@@ -304,9 +304,7 @@ function Sender01() {
     <div className="w-full flex flex-col gap-6">
       <div className="grid lg:grid-cols-2 gap-4 gap-y-6">
         <div className="flex flex-col gap-2 w-full">
-          <Label className="font-medium text-heading">
-            From Name
-          </Label>
+          <Label className="font-medium text-heading">From Name</Label>
           <Input
             {...form.register("fromName")}
             className="h-[50px] border-border rounded-none bg-white"
@@ -323,9 +321,7 @@ function Sender01() {
       </div>
 
       <div className="flex flex-col gap-2 w-full">
-        <Label className="font-medium text-heading">
-          Reply To
-        </Label>
+        <Label className="font-medium text-heading">Reply To</Label>
         <Input
           {...form.register("replyTo")}
           className="h-[50px] border-border rounded-none bg-white"
@@ -374,10 +370,31 @@ function Sender01() {
           id="file-input"
           type="file"
           multiple
+          accept=".png,.jpg,.jpeg,.pdf"
           className="hidden"
           onChange={(e) => {
-            const files = Array.from(e.target.files || []);
-            setAttachments((prev) => [...prev, ...files]);
+            const newFiles = Array.from(e.target.files || []);
+
+            const MAX_TOTAL_SIZE = 10 * 1024 * 1024;
+
+            const totalSize = [...attachments, ...newFiles].reduce(
+              (acc, file) => acc + file.size,
+              0,
+            );
+
+            if ([...attachments, ...newFiles].length > 5) {
+              toast.error("Maximum 5 attachments allowed");
+              e.currentTarget.value = "";
+              return;
+            }
+
+            if (totalSize > MAX_TOTAL_SIZE) {
+              toast.error("Total attachments exceed 10MB");
+              e.currentTarget.value = "";
+              return;
+            }
+
+            setAttachments((prev) => [...prev, ...newFiles]);
             e.currentTarget.value = "";
           }}
         />

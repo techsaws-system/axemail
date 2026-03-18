@@ -32,7 +32,7 @@ const submitToGateway = async (payload: any) => {
         .digest("hex");
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), 120000);
 
     try {
         const res = await fetch(ENV.GATEWAY_URL, {
