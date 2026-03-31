@@ -49,7 +49,7 @@ function EmailSentCard() {
             label="Email Sent"
             labelColor="text-[#2563EB]"
             sentCount={data?.sentToday || 0}
-            dailyLimit={data?.dailyLimit || 2000}
+            dailyLimit={data?.dailyLimit || 2500}
           />
         )}
       </CardContent>

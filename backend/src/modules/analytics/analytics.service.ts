@@ -13,7 +13,7 @@ export const getTodayStats = async () => {
 
     return {
         sentToday,
-        dailyLimit: 2000,
+        dailyLimit: 2500,
     };
 };
 
