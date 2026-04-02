@@ -28,4 +28,5 @@ export const ENV = {
     GATEWAY_SECRET: requiredEnv("GATEWAY_SECRET"),
 
     FROM_EMAIL: process.env.FROM_EMAIL || "no-reply@tsdruspto.us",
+    SERVER_DAILY_LIMIT: Number(process.env.SERVER_DAILY_LIMIT) || 3000,
 };

@@ -3,14 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { apiRequest } from "@/utils/api-request";
-
-export interface CurrentUser {
-  id: string;
-  firstName: string;
-  lastName: string;
-  pseudoName?: string;
-  email: string;
-}
+import type { CurrentUser } from "@/lib/authorization";
 
 export const useCurrentUser = () => {
   const [user, setUser] = useState<CurrentUser | null>(null);

@@ -1,11 +1,15 @@
 "use client";
 
 import { SidebarTrigger } from "../ui/sidebar";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { CurrentUser } from "@/lib/authorization";
 
-function DashboardHeader() {
-  const { user, loading } = useCurrentUser();
+interface DashboardHeaderProps {
+  user: CurrentUser;
+  loading?: boolean;
+}
+
+function DashboardHeader({ user, loading = false }: DashboardHeaderProps) {
 
   const formatDate = () =>
     new Date().toLocaleDateString("en-GB", {
@@ -24,6 +28,8 @@ function DashboardHeader() {
       ? `${user.firstName} ${user.lastName}`
       : "";
 
+  const roleLabel = `${user.role.charAt(0)}${user.role.slice(1).toLowerCase()}`;
+
   return (
     <header
       className="h-[90px] border-b-2 border-border bg-sidebar sticky top-0 left-0"
@@ -39,7 +45,7 @@ function DashboardHeader() {
             <Skeleton className="h-5 w-[120px] mt-1" />
           ) : (
             <h1 className="text-heading font-semibold text-lg uppercase">
-              {user?.pseudoName}
+              {user.pseudoName}
             </h1>
           )}
         </div>
@@ -65,8 +71,9 @@ function DashboardHeader() {
                 <span className="text-heading text-sm font-medium">
                   {fullName}
                 </span>
-                <span className="text-muted-foreground text-xs">
-                  {user?.email}
+                <span className="text-muted-foreground text-xs">{user.email}</span>
+                <span className="text-primary text-[11px] font-semibold uppercase tracking-[0.2em]">
+                  {roleLabel}
                 </span>
               </div>
             </>

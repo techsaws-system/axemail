@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import { startOfDay } from "date-fns";
+
 import { prisma } from "../../config/prisma";
 import { SendMailInput } from "./mail.types";
 import { EmailStatus } from "@prisma/client";
@@ -61,6 +63,51 @@ const submitToGateway = async (payload: any) => {
 
 export const sendMail = async (userId: string, payload: SendMailInput) => {
     const from = `"${payload.fromName}" <${ENV.FROM_EMAIL}>`;
+    const today = startOfDay(new Date());
+
+    const [user, sentToday, totalSentToday] = await Promise.all([
+        prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                dailySendLimit: true,
+                isActive: true,
+            },
+        }),
+        prisma.emailLog.count({
+            where: {
+                userId,
+                createdAt: {
+                    gte: today,
+                },
+            },
+        }),
+        prisma.emailLog.count({
+            where: {
+                createdAt: {
+                    gte: today,
+                },
+            },
+        }),
+    ]);
+
+    if (!user || !user.isActive) {
+        throw { statusCode: 403, message: "Your account is not active" };
+    }
+
+    if (totalSentToday >= ENV.SERVER_DAILY_LIMIT) {
+        throw {
+            statusCode: 403,
+            message: "Server daily sending limit reached. Sending will resume on the next day.",
+        };
+    }
+
+    if (sentToday >= user.dailySendLimit) {
+        throw {
+            statusCode: 403,
+            message: "Daily sending quota exceeded",
+        };
+    }
 
     try {
         const gatewayPayload = {

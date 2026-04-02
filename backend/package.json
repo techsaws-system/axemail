@@ -9,7 +9,9 @@
     "postinstall": "prisma generate",
     "migrate:deploy": "prisma migrate deploy",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed": "ts-node prisma/seed.ts",
+    "seed": "npm run seed:admin && npm run seed:manager && npm run seed:employee",
+    "seed:admin": "ts-node prisma/seed-admin.ts",
+    "seed:manager": "ts-node prisma/seed-manager.ts",
     "seed:employee": "ts-node prisma/seed-employee.ts"
   },
   "author": "",

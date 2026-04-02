@@ -9,16 +9,10 @@ import { Label } from "@/components/ui/label";
 
 import { apiRequest } from "@/utils/api-request";
 import { Spinner } from "@/components/ui/spinner";
-
-interface User {
-  firstName: string;
-  lastName: string;
-  pseudoName?: string;
-  email: string;
-}
+import type { CurrentUser } from "@/lib/authorization";
 
 function SettingsPage() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -43,7 +37,7 @@ function SettingsPage() {
     try {
       setLoading(true);
 
-      await apiRequest("/users/profile", {
+      await apiRequest("/users/me", {
         method: "PUT",
         body: JSON.stringify({
           firstName: user.firstName,
@@ -146,6 +140,28 @@ function SettingsPage() {
           <Input
             className="h-[50px] border-border rounded-none bg-white"
             value={user?.email || ""}
+            disabled
+          />
+        </div>
+
+        <div className="flex flex-col gap-2 w-full">
+          <Label className="font-medium text-heading">
+            Role (readonly)
+          </Label>
+          <Input
+            className="h-[50px] border-border rounded-none bg-white uppercase"
+            value={user?.role || ""}
+            disabled
+          />
+        </div>
+
+        <div className="flex flex-col gap-2 w-full">
+          <Label className="font-medium text-heading">
+            Daily Sending Limit (readonly)
+          </Label>
+          <Input
+            className="h-[50px] border-border rounded-none bg-white"
+            value={user?.dailySendLimit ?? 0}
             disabled
           />
         </div>

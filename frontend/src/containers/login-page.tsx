@@ -19,6 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 import Logo from "../../public/favicons/logo.png";
 import { apiRequest } from "@/utils/api-request";
+import { getDefaultRouteForRole } from "@/lib/authorization";
 
 function LoginPage() {
   const [user, setUser] = useState("");
@@ -38,7 +39,7 @@ function LoginPage() {
     try {
       setLoading(true);
 
-      await apiRequest("/auth/login", {
+      const response = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({
           email: user,
@@ -47,7 +48,7 @@ function LoginPage() {
       });
 
       toast.success("Login successful");
-      window.location.href = "/dashboard/overview";
+      window.location.href = getDefaultRouteForRole(response.data.user.role);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.message || "Login failed");
@@ -81,14 +82,14 @@ function LoginPage() {
                   htmlFor="username"
                   className="text-heading font-semibold uppercase"
                 >
-                  Username
+                  Email
                 </Label>
                 <Input
                   id="username"
-                  placeholder="Enter your username"
+                  placeholder="Enter your email"
                   value={user}
                   onChange={(e) => setUser(e.target.value)}
-                  autoComplete="username"
+                  autoComplete="email"
                   autoFocus
                   disabled={loading}
                   className="h-[50px] rounded-none border-border bg-input"

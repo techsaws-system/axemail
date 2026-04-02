@@ -19,11 +19,19 @@ import {
 } from "../../components/ui/sidebar";
 
 import { cn } from "@/lib/utils";
+import type { UserRole } from "@/lib/authorization";
 
 import Logo from "../../../public/favicons/logo.png";
 
-function DashboardSidebar({ ...props }) {
+interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  userRole: UserRole;
+}
+
+function DashboardSidebar({ userRole, ...props }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const navItems = DashboardSidebarNavLinks.filter((item) =>
+    item.roles.includes(userRole),
+  );
 
   return (
     <Sidebar {...props} className="border-sidebar-border">
@@ -36,7 +44,7 @@ function DashboardSidebar({ ...props }) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="py-4 gap-4">
-              {DashboardSidebarNavLinks.map((item) => {
+              {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.path;
 

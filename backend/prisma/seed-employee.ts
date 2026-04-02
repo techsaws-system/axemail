@@ -1,29 +1,17 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
 import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
 const employees = [
     {
-        firstName: "Nabeel",
-        lastName: "Hassan",
-        pseudoName: "Michael Baird",
-        email: "michaelbaird@axemail.cloud",
-        password: "phd@123",
-    },
-    {
-        firstName: "Sitwat",
-        lastName: "Cyril",
-        pseudoName: "Brett Golden",
-        email: "brettgolden@axemail.cloud",
-        password: "phd@123",
-    },
-    {
         firstName: "Asad",
         lastName: "Irfan",
         pseudoName: "Jeff Miller",
         email: "jeffmiller@axemail.cloud",
         password: "phd@123",
+        role: UserRole.EMPLOYEE,
+        dailySendLimit: 0,
     },
     {
         firstName: "Sandeer",
@@ -31,6 +19,8 @@ const employees = [
         pseudoName: "Fred Thompson",
         email: "fredthompson@axemail.cloud",
         password: "phd@123",
+        role: UserRole.EMPLOYEE,
+        dailySendLimit: 0,
     },
     {
         firstName: "Sameer",
@@ -38,6 +28,8 @@ const employees = [
         pseudoName: "Kevin Fernendes",
         email: "kevinfernendes@axemail.cloud",
         password: "phd@123",
+        role: UserRole.EMPLOYEE,
+        dailySendLimit: 0,
     },
     {
         firstName: "Hassan",
@@ -45,6 +37,8 @@ const employees = [
         pseudoName: "Ryan Copper",
         email: "ryancopper@axemail.cloud",
         password: "phd@123",
+        role: UserRole.EMPLOYEE,
+        dailySendLimit: 0,
     },
     {
         firstName: "Muhammad",
@@ -52,6 +46,8 @@ const employees = [
         pseudoName: "Pseudo Missing",
         email: "pseudomissing01@axemail.cloud",
         password: "phd@123",
+        role: UserRole.EMPLOYEE,
+        dailySendLimit: 0,
     },
     {
         firstName: "Muhammad",
@@ -59,6 +55,8 @@ const employees = [
         pseudoName: "Pseudo Missing",
         email: "pseudomissing02@axemail.cloud",
         password: "phd@123",
+        role: UserRole.EMPLOYEE,
+        dailySendLimit: 0,
     },
     {
         firstName: "Abdul",
@@ -66,6 +64,8 @@ const employees = [
         pseudoName: "Michael Brown",
         email: "michaelbrown@axemail.cloud",
         password: "phd@123",
+        role: UserRole.EMPLOYEE,
+        dailySendLimit: 0,
     },
     {
         firstName: "Muhammad",
@@ -73,6 +73,8 @@ const employees = [
         pseudoName: "Mark Brown",
         email: "markbrown@axemail.cloud",
         password: "phd@123",
+        role: UserRole.EMPLOYEE,
+        dailySendLimit: 0,
     },
 ];
 
@@ -96,6 +98,8 @@ async function main() {
                 pseudoName: emp.pseudoName,
                 email: emp.email,
                 password: hashedPassword,
+                role: emp.role,
+                dailySendLimit: emp.dailySendLimit,
                 isActive: true,
             },
         });

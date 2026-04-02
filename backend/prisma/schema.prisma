@@ -8,17 +8,28 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  firstName    String
-  lastName     String
-  pseudoName   String?
-  email        String     @unique
-  password     String
-  refreshToken String?
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  emailLogs    EmailLog[]
+  id                String     @id @default(uuid())
+  firstName         String
+  lastName          String
+  pseudoName        String?
+  email             String     @unique
+  password          String
+  role              UserRole   @default(EMPLOYEE)
+  dailySendLimit    Int        @default(0)
+  managerId         String?
+  assignedById      String?
+  refreshToken      String?
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  emailLogs         EmailLog[]
+  manager           User?      @relation("UserManager", fields: [managerId], references: [id])
+  managedEmployees  User[]     @relation("UserManager")
+  quotaAssignedBy   User?      @relation("QuotaAssignment", fields: [assignedById], references: [id])
+  assignedUsers     User[]     @relation("QuotaAssignment")
+
+  @@index([managerId])
+  @@index([assignedById])
 }
 
 model EmailLog {
@@ -34,4 +45,10 @@ enum EmailStatus {
   accepted
   rejected
   deferred
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  EMPLOYEE
 }

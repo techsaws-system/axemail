@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --font-inter: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     --background: #f8fafc;
     --foreground: #1f2937;
 

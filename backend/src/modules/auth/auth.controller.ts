@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { UserRole } from "@prisma/client";
 import {
     registerUser,
     loginUser,
@@ -17,7 +18,17 @@ export const register = async (
     next: NextFunction
 ) => {
     try {
-        const result = await registerUser(req.body);
+        const requestedRole = req.body.role as UserRole | undefined;
+
+        const result = await registerUser({
+            ...req.body,
+            role:
+                requestedRole === UserRole.ADMIN ||
+                requestedRole === UserRole.MANAGER ||
+                requestedRole === UserRole.EMPLOYEE
+                    ? requestedRole
+                    : undefined,
+        });
         successResponse(res, result, "User registered", 201);
     } catch (error) {
         next(error);

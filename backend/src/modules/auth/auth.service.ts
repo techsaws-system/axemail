@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import { UserRole } from "@prisma/client";
 import { hashPassword, comparePassword } from "../../utils/hash";
 import {
     generateAccessToken,
@@ -6,12 +7,28 @@ import {
     verifyToken,
 } from "../../utils/jwt";
 
+const authUserSelect = {
+    id: true,
+    firstName: true,
+    lastName: true,
+    pseudoName: true,
+    email: true,
+    role: true,
+    dailySendLimit: true,
+    managerId: true,
+    assignedById: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+} as const;
+
 interface RegisterInput {
     firstName: string;
     lastName: string;
     pseudoName?: string;
     email: string;
     password: string;
+    role?: UserRole;
 }
 
 interface LoginInput {
@@ -37,11 +54,18 @@ export const registerUser = async (data: RegisterInput) => {
             pseudoName: data.pseudoName,
             email: data.email,
             password: hashed,
+            role: data.role ?? UserRole.EMPLOYEE,
         },
+        select: authUserSelect,
     });
 
-    const accessToken = generateAccessToken({ userId: user.id });
-    const refreshToken = generateRefreshToken({ userId: user.id });
+    const tokenPayload = {
+        userId: user.id,
+        role: user.role,
+    };
+
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
 
     await prisma.user.update({
         where: { id: user.id },
@@ -66,15 +90,25 @@ export const loginUser = async (data: LoginInput) => {
         throw { statusCode: 401, message: "Invalid credentials" };
     }
 
-    const accessToken = generateAccessToken({ userId: user.id });
-    const refreshToken = generateRefreshToken({ userId: user.id });
+    const tokenPayload = {
+        userId: user.id,
+        role: user.role,
+    };
+
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
 
     await prisma.user.update({
         where: { id: user.id },
         data: { refreshToken },
     });
 
-    return { user, accessToken, refreshToken };
+    const safeUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: authUserSelect,
+    });
+
+    return { user: safeUser, accessToken, refreshToken };
 };
 
 export const refreshAccessToken = async (refreshToken: string) => {
@@ -88,7 +122,10 @@ export const refreshAccessToken = async (refreshToken: string) => {
         throw { statusCode: 403, message: "Invalid refresh token" };
     }
 
-    const accessToken = generateAccessToken({ userId: user.id });
+    const accessToken = generateAccessToken({
+        userId: user.id,
+        role: user.role,
+    });
 
     return { accessToken };
 };

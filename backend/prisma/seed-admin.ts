@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
 import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
@@ -9,7 +9,7 @@ async function main() {
     });
 
     if (existing) {
-        console.log("⚠ Admin user already exists.");
+        console.log("Admin user already exists.");
         return;
     }
 
@@ -22,15 +22,18 @@ async function main() {
             pseudoName: "Debugging Master",
             email: "admin@axemail.cloud",
             password: hashedPassword,
+            role: UserRole.ADMIN,
+            dailySendLimit: 0,
+            isActive: true,
         },
     });
 
-    console.log("✅ Admin user created successfully.");
+    console.log("Admin user created successfully.");
 }
 
 main()
-    .catch((e) => {
-        console.error(e);
+    .catch((error) => {
+        console.error(error);
         process.exit(1);
     })
     .finally(async () => {

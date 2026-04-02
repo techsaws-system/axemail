@@ -1,10 +1,12 @@
 import jwt from "jsonwebtoken";
 import type { Secret, SignOptions } from "jsonwebtoken";
 import type { StringValue } from "ms";
+import type { UserRole } from "@prisma/client";
 import { ENV } from "../config/env";
 
 export interface JwtPayload {
     userId: string;
+    role: UserRole;
 }
 
 export const generateAccessToken = (payload: JwtPayload): string => {
