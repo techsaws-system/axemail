@@ -19,7 +19,7 @@ export const ENV = {
 
     JWT_SECRET: requiredEnv("JWT_SECRET"),
     JWT_EXPIRES_IN: (process.env.JWT_EXPIRES_IN || "8h") as string,
-    JWT_REFRESH_EXPIRES_IN: (process.env.JWT_REFRESH_EXPIRES_IN || "8h") as string,
+    JWT_REFRESH_EXPIRES_IN: (process.env.JWT_REFRESH_EXPIRES_IN || "8h") as string, 
 
     RATE_LIMIT_WINDOW: Number(process.env.RATE_LIMIT_WINDOW) || 15,
     RATE_LIMIT_MAX: Number(process.env.RATE_LIMIT_MAX) || 100,
