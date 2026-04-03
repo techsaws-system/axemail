@@ -5,8 +5,9 @@ export interface SendMailInput {
     html: string;
     text?: string;
     replyTo?: string;
-    cc?: string;
-    bcc?: string;
+    cc?: string | string[];
+    bcc?: string | string[];
+    meta?: Record<string, unknown>;
     attachments?: {
         filename: string;
         content: string;

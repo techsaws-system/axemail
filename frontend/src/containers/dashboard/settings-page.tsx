@@ -15,7 +15,7 @@ function SettingsPage() {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const isAdmin = user?.role === "ADMIN";
+  const canEditOwnLimit = user?.role === "ADMIN" || user?.role === "MANAGER";
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -44,7 +44,7 @@ function SettingsPage() {
           firstName: user.firstName,
           lastName: user.lastName,
           pseudoName: user.pseudoName,
-          dailySendLimit: isAdmin ? Number(user.dailySendLimit) : undefined,
+          dailySendLimit: canEditOwnLimit ? Number(user.dailySendLimit) : undefined,
         }),
       });
 
@@ -159,14 +159,14 @@ function SettingsPage() {
 
         <div className="flex flex-col gap-2 w-full">
           <Label className="font-medium text-heading">
-            Daily Sending Limit {isAdmin ? "" : "(readonly)"}
+            Daily Sending Limit {canEditOwnLimit ? "" : "(readonly)"}
           </Label>
           <Input
             className="h-[50px] border-border rounded-none bg-white"
             value={user?.dailySendLimit ?? 0}
             type="number"
             min={0}
-            disabled={!isAdmin}
+            disabled={!canEditOwnLimit}
             onChange={(e) =>
               setUser((prev) =>
                 prev

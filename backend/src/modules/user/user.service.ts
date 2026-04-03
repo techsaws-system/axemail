@@ -36,11 +36,75 @@ export const updateUserProfile = async (
     };
 
     if (
-        role === UserRole.ADMIN &&
+        (role === UserRole.ADMIN || role === UserRole.MANAGER) &&
         typeof data.dailySendLimit === "number" &&
         Number.isInteger(data.dailySendLimit) &&
         data.dailySendLimit >= 0
     ) {
+        const currentUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                role: true,
+                dailySendLimit: true,
+            },
+        });
+
+        if (!currentUser) {
+            throw { statusCode: 404, message: "User not found" };
+        }
+
+        if (role === UserRole.MANAGER) {
+            const employeeAllocated = await prisma.user.aggregate({
+                where: {
+                    role: UserRole.EMPLOYEE,
+                    managerId: userId,
+                },
+                _sum: {
+                    dailySendLimit: true,
+                },
+            });
+
+            const allocatedToEmployees = employeeAllocated._sum.dailySendLimit || 0;
+
+            if (data.dailySendLimit < allocatedToEmployees) {
+                throw {
+                    statusCode: 400,
+                    message: `Your limit cannot be lower than the ${allocatedToEmployees} already assigned to employees`,
+                };
+            }
+
+            const otherAllocated = await prisma.user.aggregate({
+                where: {
+                    role: {
+                        in: [UserRole.MANAGER, UserRole.EMPLOYEE],
+                    },
+                    NOT: {
+                        id: userId,
+                    },
+                },
+                _sum: {
+                    dailySendLimit: true,
+                },
+            });
+
+            const usedByOthers = otherAllocated._sum.dailySendLimit || 0;
+
+            if (usedByOthers + data.dailySendLimit > ENV.SERVER_DAILY_LIMIT) {
+                throw {
+                    statusCode: 400,
+                    message: `Limit exceeds server remaining capacity of ${Math.max(ENV.SERVER_DAILY_LIMIT - usedByOthers, 0)}`,
+                };
+            }
+        }
+
+        if (role === UserRole.ADMIN && data.dailySendLimit > ENV.SERVER_DAILY_LIMIT) {
+            throw {
+                statusCode: 400,
+                message: `Admin self limit cannot exceed the server daily limit of ${ENV.SERVER_DAILY_LIMIT}`,
+            };
+        }
+
         updateData.dailySendLimit = data.dailySendLimit;
     }
 

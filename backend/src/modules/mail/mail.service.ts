@@ -6,6 +6,43 @@ import { SendMailInput } from "./mail.types";
 import { EmailStatus } from "@prisma/client";
 import { ENV } from "../../config/env";
 
+const cleanHeaderValue = (value: string) => value.replace(/[\r\n]+/g, " ").trim();
+
+const parseRecipients = (value?: string | string[]) => {
+    if (!value) {
+        return [];
+    }
+
+    const items = Array.isArray(value) ? value : value.split(/[,;]+/);
+
+    return [...new Set(
+        items
+            .map((item) => item.trim())
+            .filter(Boolean)
+    )];
+};
+
+const normalizeAttachments = (
+    attachments?: SendMailInput["attachments"]
+) => {
+    if (!attachments?.length) {
+        return undefined;
+    }
+
+    return attachments.map((attachment) => ({
+        filename: cleanHeaderValue(attachment.filename),
+        content: attachment.content,
+        contentType: attachment.contentType || "application/octet-stream",
+        contentTransferEncoding: "base64",
+        disposition: "attachment",
+    }));
+};
+
+const generateMessageId = () => {
+    const domain = ENV.FROM_EMAIL.split("@")[1] || "axemail.local";
+    return `<${crypto.randomUUID()}@${domain}>`;
+};
+
 const stripHtmlToText = (html: string) =>
     html
         .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -62,8 +99,15 @@ const submitToGateway = async (payload: any) => {
 };
 
 export const sendMail = async (userId: string, payload: SendMailInput) => {
-    const from = `"${payload.fromName}" <${ENV.FROM_EMAIL}>`;
+    const fromName = cleanHeaderValue(payload.fromName);
+    const from = `"${fromName}" <${ENV.FROM_EMAIL}>`;
     const today = startOfDay(new Date());
+    const to = parseRecipients(payload.to);
+    const cc = parseRecipients(payload.cc);
+    const bcc = parseRecipients(payload.bcc);
+    const replyTo = payload.replyTo ? cleanHeaderValue(payload.replyTo) : undefined;
+    const messageId = generateMessageId();
+    const sentAt = new Date().toUTCString();
 
     const [user, sentToday, totalSentToday] = await Promise.all([
         prisma.user.findUnique({
@@ -109,19 +153,48 @@ export const sendMail = async (userId: string, payload: SendMailInput) => {
         };
     }
 
+    if (to.length === 0) {
+        throw {
+            statusCode: 400,
+            message: "At least one recipient is required",
+        };
+    }
+
     try {
+        const textBody = payload.text?.trim() || stripHtmlToText(payload.html);
+        const envelopeRecipients = [...to, ...cc, ...bcc];
+
         const gatewayPayload = {
             from,
-            to: payload.to,
-            subject: payload.subject,
-            html: payload.html,
-            text: stripHtmlToText(payload.html),
-            headers: {
-                ...(payload.replyTo ? { "Reply-To": payload.replyTo } : {}),
+            sender: ENV.FROM_EMAIL,
+            to,
+            cc: cc.length > 0 ? cc : undefined,
+            bcc: bcc.length > 0 ? bcc : undefined,
+            envelope: {
+                from: ENV.FROM_EMAIL,
+                to: envelopeRecipients,
             },
-            attachments: payload.attachments,
-            ...(payload.cc ? { cc: payload.cc } : {}),
-            ...(payload.bcc ? { bcc: payload.bcc } : {}),
+            subject: cleanHeaderValue(payload.subject),
+            html: payload.html,
+            text: textBody,
+            messageId,
+            date: sentAt,
+            replyTo,
+            meta: {
+                source: "axemail-api",
+                userId,
+                generatedAt: new Date().toISOString(),
+                ...payload.meta,
+            },
+            headers: {
+                Date: sentAt,
+                "Message-ID": messageId,
+                "MIME-Version": "1.0",
+                "X-Mailer": "Axemail API",
+                "X-Axemail-User-Id": userId,
+                ...(replyTo ? { "Reply-To": replyTo } : {}),
+            },
+            attachments: normalizeAttachments(payload.attachments),
         };
 
         const gatewayResult = await submitToGateway(gatewayPayload);
@@ -137,7 +210,7 @@ export const sendMail = async (userId: string, payload: SendMailInput) => {
         await prisma.emailLog.create({
             data: {
                 userId,
-                recipient: payload.to,
+                recipient: to.join(", "),
                 status,
             },
         });
@@ -151,7 +224,7 @@ export const sendMail = async (userId: string, payload: SendMailInput) => {
         await prisma.emailLog.create({
             data: {
                 userId,
-                recipient: payload.to,
+                recipient: to.join(", "),
                 status: EmailStatus.rejected,
             },
         });
