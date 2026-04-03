@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
 import { apiRequest } from "@/utils/api-request";
+import { useSendAvailability } from "@/hooks/use-send-availability";
 
 import {
   SendHorizonal,
@@ -217,6 +218,13 @@ function Sender01() {
   const [html, setHtml] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [editorResetKey, setEditorResetKey] = useState(0);
+  const {
+    canSend,
+    disabledReason,
+    remainingToday,
+    dailyLimit,
+    refresh,
+  } = useSendAvailability();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -273,6 +281,7 @@ function Sender01() {
       };
 
       await sendEmailTransport(payload);
+      await refresh();
 
       toast.success("Email processed");
       setStatus("success");
@@ -299,14 +308,33 @@ function Sender01() {
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const subjectValue = form.watch("subject") || "";
+  const isDisabled = !canSend || status === "sending";
 
   return (
     <div className="w-full flex flex-col gap-6">
+      {!canSend && disabledReason ? (
+        <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {disabledReason}
+        </div>
+      ) : null}
+
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="border border-border px-4 py-3 bg-white">
+          <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Daily Limit</p>
+          <p className="mt-2 text-2xl font-semibold text-heading">{dailyLimit}</p>
+        </div>
+        <div className="border border-border px-4 py-3 bg-white">
+          <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Remaining Today</p>
+          <p className="mt-2 text-2xl font-semibold text-primary">{remainingToday}</p>
+        </div>
+      </div>
+
       <div className="grid lg:grid-cols-2 gap-4 gap-y-6">
         <div className="flex flex-col gap-2 w-full">
           <Label className="font-medium text-heading">From Name</Label>
           <Input
             {...form.register("fromName")}
+            disabled={isDisabled}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -315,6 +343,7 @@ function Sender01() {
           <Label className="font-medium text-heading">To</Label>
           <Input
             {...form.register("to")}
+            disabled={isDisabled}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -324,6 +353,7 @@ function Sender01() {
         <Label className="font-medium text-heading">Reply To</Label>
         <Input
           {...form.register("replyTo")}
+          disabled={isDisabled}
           className="h-[50px] border-border rounded-none bg-white"
         />
       </div>
@@ -333,6 +363,7 @@ function Sender01() {
           <Label className="font-medium text-heading">CC</Label>
           <Input
             {...form.register("cc")}
+            disabled={isDisabled}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -341,6 +372,7 @@ function Sender01() {
           <Label className="font-medium text-heading">BCC</Label>
           <Input
             {...form.register("bcc")}
+            disabled={isDisabled}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -350,6 +382,7 @@ function Sender01() {
         <Label className="font-medium text-heading">Subject</Label>
         <Input
           {...form.register("subject")}
+          disabled={isDisabled}
           className="h-[50px] border-border rounded-none bg-white"
         />
         <CharCounter value={subjectValue} limit={150} />
@@ -360,6 +393,7 @@ function Sender01() {
       <div className="flex items-center gap-3">
         <Button
           type="button"
+          disabled={isDisabled}
           className="h-[45px] hover:bg-primary-hover rounded-none"
           onClick={() => document.getElementById("file-input")?.click()}
         >
@@ -372,6 +406,7 @@ function Sender01() {
           multiple
           accept=".png,.jpg,.jpeg,.pdf"
           className="hidden"
+          disabled={isDisabled}
           onChange={(e) => {
             const newFiles = Array.from(e.target.files || []);
 
@@ -421,12 +456,12 @@ function Sender01() {
         </div>
       )}
 
-      <EmailEditor value={html} onChange={setHtml} resetKey={editorResetKey} />
+      <EmailEditor value={html} onChange={setHtml} resetKey={editorResetKey} disabled={isDisabled} />
 
       <div className="flex items-center justify-between mt-4">
         <SendAnimation status={status} />
         <Button
-          disabled={status === "sending"}
+          disabled={isDisabled}
           className="h-[45px] hover:bg-primary-hover rounded-sm"
           onClick={form.handleSubmit(onSubmit)}
         >

@@ -29,6 +29,7 @@ export const updateProfile = async (
     try {
         const updated = await updateUserProfile(
             req.user!.userId,
+            req.user!.role,
             req.body
         );
         successResponse(res, updated, "Profile updated");

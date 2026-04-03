@@ -14,6 +14,7 @@ import { Template01HTML } from "@/components/templates/template-01-html";
 
 import { SendHorizonal } from "lucide-react";
 import { apiRequest } from "@/utils/api-request";
+import { useSendAvailability } from "@/hooks/use-send-availability";
 
 /* ============================= */
 /* VALIDATION */
@@ -43,6 +44,13 @@ function TemplateSenderTemp01() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
   });
+  const {
+    canSend,
+    disabledReason,
+    remainingToday,
+    dailyLimit,
+    refresh,
+  } = useSendAvailability();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sendEmailTransport = async (payload: any) => {
@@ -73,6 +81,7 @@ function TemplateSenderTemp01() {
       };
 
       await sendEmailTransport(payload);
+      await refresh();
 
       toast.success("Template email processed");
       setStatus("success");
@@ -90,12 +99,30 @@ function TemplateSenderTemp01() {
 
   return (
     <div className="w-full flex flex-col gap-6">
+      {!canSend && disabledReason ? (
+        <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {disabledReason}
+        </div>
+      ) : null}
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="border border-border px-4 py-3 bg-white">
+          <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Daily Limit</p>
+          <p className="mt-2 text-2xl font-semibold text-heading">{dailyLimit}</p>
+        </div>
+        <div className="border border-border px-4 py-3 bg-white">
+          <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Remaining Today</p>
+          <p className="mt-2 text-2xl font-semibold text-primary">{remainingToday}</p>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-2 w-full">
         <Label className="font-medium text-heading">
           From Name
         </Label>
         <Input
           {...form.register("fromName")}
+          disabled={!canSend || status === "sending"}
           className="h-[50px] border-border rounded-none bg-white"
         />
       </div>
@@ -105,6 +132,7 @@ function TemplateSenderTemp01() {
           <Label className="font-medium text-heading">To</Label>
           <Input
             {...form.register("to")}
+            disabled={!canSend || status === "sending"}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -115,6 +143,7 @@ function TemplateSenderTemp01() {
           </Label>
           <Input
             {...form.register("replyTo")}
+            disabled={!canSend || status === "sending"}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -124,6 +153,7 @@ function TemplateSenderTemp01() {
         <Label className="font-medium text-heading">Subject</Label>
         <Input
           {...form.register("subject")}
+          disabled={!canSend || status === "sending"}
           className="h-[50px] border-border rounded-none bg-white"
         />
       </div>
@@ -133,6 +163,7 @@ function TemplateSenderTemp01() {
           <Label className="font-medium text-heading">CC</Label>
           <Input
             {...form.register("cc")}
+            disabled={!canSend || status === "sending"}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -141,6 +172,7 @@ function TemplateSenderTemp01() {
           <Label className="font-medium text-heading">BCC</Label>
           <Input
             {...form.register("bcc")}
+            disabled={!canSend || status === "sending"}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -152,6 +184,7 @@ function TemplateSenderTemp01() {
         </Label>
         <Input
           {...form.register("examiningOfficer")}
+          disabled={!canSend || status === "sending"}
           className="h-[50px] border-border rounded-none bg-white"
         />
       </div>
@@ -160,6 +193,7 @@ function TemplateSenderTemp01() {
         <Label className="font-medium text-heading">Phone</Label>
         <Input
           {...form.register("phone")}
+          disabled={!canSend || status === "sending"}
           className="h-[50px] border-border rounded-none bg-white"
         />
       </div>
@@ -171,6 +205,7 @@ function TemplateSenderTemp01() {
           </Label>
           <Input
             {...form.register("appointmentTime")}
+            disabled={!canSend || status === "sending"}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -181,6 +216,7 @@ function TemplateSenderTemp01() {
           </Label>
           <Input
             {...form.register("appointmentNumber")}
+            disabled={!canSend || status === "sending"}
             className="h-[50px] border-border rounded-none bg-white"
           />
         </div>
@@ -192,6 +228,7 @@ function TemplateSenderTemp01() {
         </Label>
         <Input
           {...form.register("serialNumber")}
+          disabled={!canSend || status === "sending"}
           className="h-[50px] border-border rounded-none bg-white"
         />
       </div>
@@ -200,6 +237,7 @@ function TemplateSenderTemp01() {
         <Label className="font-medium text-heading">Date</Label>
         <Input
           {...form.register("date")}
+          disabled={!canSend || status === "sending"}
           className="h-[50px] border-border rounded-none bg-white"
         />
       </div>
@@ -207,7 +245,7 @@ function TemplateSenderTemp01() {
       <div className="flex items-center justify-between mt-4">
         <SendAnimation status={status} />
         <Button
-          disabled={status === "sending"}
+          disabled={!canSend || status === "sending"}
           className="h-[45px] hover:bg-primary-hover rounded-sm"
           onClick={form.handleSubmit(onSubmit)}
         >

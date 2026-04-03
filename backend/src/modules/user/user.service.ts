@@ -26,11 +26,27 @@ export const getCurrentUser = async (userId: string) => {
 
 export const updateUserProfile = async (
     userId: string,
+    role: UserRole,
     data: UpdateUserInput
 ) => {
+    const updateData: UpdateUserInput = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        pseudoName: data.pseudoName,
+    };
+
+    if (
+        role === UserRole.ADMIN &&
+        typeof data.dailySendLimit === "number" &&
+        Number.isInteger(data.dailySendLimit) &&
+        data.dailySendLimit >= 0
+    ) {
+        updateData.dailySendLimit = data.dailySendLimit;
+    }
+
     return prisma.user.update({
         where: { id: userId },
-        data,
+        data: updateData,
         select: {
             id: true,
             firstName: true,

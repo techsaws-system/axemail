@@ -23,7 +23,7 @@ async function main() {
             email: "admin@axemail.cloud",
             password: hashedPassword,
             role: UserRole.ADMIN,
-            dailySendLimit: 0,
+            dailySendLimit: 100,
             isActive: true,
         },
     });
