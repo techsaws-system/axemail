@@ -1,5 +1,3 @@
-import "@/utils/module-alias";
-
 import { config } from "dotenv";
 import { z } from "zod";
 

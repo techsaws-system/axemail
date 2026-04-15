@@ -1,5 +1,3 @@
-import "@/utils/module-alias";
-
 import type { Server } from "node:http";
 
 import { env } from "@/config/env";

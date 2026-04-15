@@ -1,5 +1,3 @@
-import "@/utils/module-alias";
-
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";

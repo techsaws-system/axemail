@@ -1,5 +1,3 @@
-import "@/utils/module-alias";
-
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
 
