@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f3f5f8;
+  --foreground: #101828;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-ibm-plex-mono);
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.07), transparent 22%),
+    linear-gradient(180deg, #f8fafc 0%, #f3f5f8 48%, #edf1f5 100%);
+  color: var(--foreground);
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.18);
+  color: #0f172a;
+}
+
+.dashboard-card {
+  @apply rounded-[1.5rem] border border-slate-200/80 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl;
+}
+
+.dashboard-card-dark {
+  @apply bg-white;
+}
+
+.dashboard-card-light {
+  @apply bg-slate-50/80;
+}
+
+.dashboard-grid {
+  @apply grid gap-5 md:grid-cols-2 2xl:grid-cols-4;
+}
+
+.dashboard-section {
+  @apply space-y-4;
+}
+
+.dashboard-header {
+  @apply rounded-[1.5rem] border border-slate-200/80 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl;
+}
+
+.dashboard-sidebar {
+  @apply rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl;
+}
+
+.tiptap-content a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tiptap-content ul {
+  list-style: disc;
+  margin-left: 1.25rem;
+}
+
+.tiptap-content ol {
+  list-style: decimal;
+  margin-left: 1.25rem;
+}
+
+.tiptap-content li {
+  margin: 0.25rem 0;
+}
