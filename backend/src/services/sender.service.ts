@@ -7,6 +7,7 @@ import { AppError } from "@/utils/app-error";
 import { startOfTodayUtc } from "@/utils/date";
 import { buildEmailHeaders, buildEnvelope } from "@/services/email-composer.service";
 import { resolveUserContext } from "@/services/context.service";
+import { getMaskServerHealth } from "@/services/mask-server.service";
 import { dispatchMessage } from "@/services/sender-dispatch.service";
 
 const reservedRecipientStatuses = [
@@ -77,8 +78,9 @@ async function processCampaign(campaignId: string, recipientCount: number) {
 
   for (let index = 0; index < campaign.recipientEvents.length; index += 1) {
     const recipient = campaign.recipientEvents[index];
+    const isMaskSender = campaign.senderType === SenderType.MASK;
 
-    if (!recipient.senderAccountId) {
+    if (!isMaskSender && !recipient.senderAccountId) {
       await prisma.campaignRecipient.update({
         where: { id: recipient.id },
         data: {
@@ -90,11 +92,18 @@ async function processCampaign(campaignId: string, recipientCount: number) {
       continue;
     }
 
-    const assignedAccount = await prisma.senderAccount.findUnique({
-      where: { id: recipient.senderAccountId },
-    });
+    const assignedAccount = recipient.senderAccountId
+      ? await prisma.senderAccount.findUnique({
+          where: { id: recipient.senderAccountId },
+        })
+      : null;
 
-    if (!assignedAccount || assignedAccount.status !== "ACTIVE" || assignedAccount.healthStatus !== "ACTIVE") {
+    if (
+      !isMaskSender &&
+      (!assignedAccount ||
+        assignedAccount.status !== "ACTIVE" ||
+        assignedAccount.healthStatus !== "ACTIVE")
+    ) {
       await prisma.campaignRecipient.update({
         where: { id: recipient.id },
         data: {
@@ -109,8 +118,8 @@ async function processCampaign(campaignId: string, recipientCount: number) {
     const senderType = campaign.senderType;
     const senderEmail =
       senderType === SenderType.MASK
-        ? campaign.fromEmail ?? assignedAccount.email
-        : assignedAccount.email;
+        ? campaign.fromEmail ?? ""
+        : assignedAccount!.email;
 
     const headers = buildEmailHeaders({
       campaignId: campaign.id,
@@ -120,8 +129,8 @@ async function processCampaign(campaignId: string, recipientCount: number) {
     });
 
     const dispatchPayload = {
-      provider: assignedAccount.provider,
-      senderAccountId: assignedAccount.id,
+      provider: assignedAccount?.provider ?? "mask-vps",
+      senderAccountId: assignedAccount?.id ?? "mask-server",
       senderEmail,
       senderName: campaign.fromName,
       to: recipient.recipientEmail,
@@ -134,8 +143,8 @@ async function processCampaign(campaignId: string, recipientCount: number) {
       attachments: normalizeAttachments(campaign.attachments),
       headers,
       envelope: buildEnvelope({
-        provider: assignedAccount.provider,
-        senderAccountId: assignedAccount.id,
+        provider: assignedAccount?.provider ?? "mask-vps",
+        senderAccountId: assignedAccount?.id ?? "mask-server",
         senderEmail,
         senderName: campaign.fromName,
         to: recipient.recipientEmail,
@@ -162,7 +171,10 @@ async function processCampaign(campaignId: string, recipientCount: number) {
     };
 
     try {
-      const result = await dispatchMessage(senderType, assignedAccount, dispatchPayload);
+      const result = await dispatchMessage(senderType, assignedAccount ?? {
+        email: senderEmail,
+        provider: "mask-vps",
+      }, dispatchPayload);
 
       await prisma.campaignRecipient.update({
         where: { id: recipient.id },
@@ -305,7 +317,7 @@ async function reserveCampaign(
     data: recipients.map((recipientEmail, index) => ({
       campaignId: campaign.id,
       recipientEmail,
-      senderAccountId: accountAssignments[index].id,
+      senderAccountId: accountAssignments[index]?.id ?? null,
       status: RecipientStatus.QUEUED,
     })),
   });
@@ -321,6 +333,40 @@ async function reserveSenderAccounts(
   senderType: SenderType,
   recipientCount: number,
 ) {
+  if (senderType === SenderType.MASK) {
+    const health = await getMaskServerHealth();
+
+    if (health.status !== "active") {
+      throw new AppError("Mask server is not working.", 409);
+    }
+
+    const policy = await transaction.senderPolicy.findUnique({
+      where: { senderType: SenderType.MASK },
+    });
+
+    const dailyLimit = policy?.dailyLimit ?? 2000;
+    const usedToday = await transaction.campaignRecipient.count({
+      where: {
+        campaign: {
+          senderType: SenderType.MASK,
+          createdAt: { gte: startOfTodayUtc() },
+        },
+        status: { in: reservedRecipientStatuses as unknown as RecipientStatus[] },
+      },
+    });
+
+    const remaining = Math.max(dailyLimit - usedToday, 0);
+
+    if (remaining < recipientCount) {
+      throw new AppError("Provider daily capacity exceeded.", 409, {
+        totalAvailable: remaining,
+        requested: recipientCount,
+      });
+    }
+
+    return Array.from({ length: recipientCount }, () => null);
+  }
+
   const accounts = await transaction.senderAccount.findMany({
     where: { type: senderType, status: "ACTIVE", healthStatus: "ACTIVE" },
     orderBy: { createdAt: "asc" },
