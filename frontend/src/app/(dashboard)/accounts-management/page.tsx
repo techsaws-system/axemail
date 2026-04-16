@@ -80,6 +80,8 @@ export default function AccountsManagementPage() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<UserFormState>(emptyForm);
+  const [deletePendingUserId, setDeletePendingUserId] = useState<string | null>(null);
+  const [terminatePendingUserId, setTerminatePendingUserId] = useState<string | null>(null);
   const isAdmin = role === ROLE.ADMIN;
   const isManager = role === ROLE.MANAGER;
   const usersQuery = useQuery({
@@ -121,9 +123,15 @@ export default function AccountsManagementPage() {
   });
   const deleteUserMutation = useMutation({
     mutationFn: deleteUser,
+    onMutate: async (userId) => {
+      setDeletePendingUserId(userId);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("Account deleted.");
+    },
+    onSettled: () => {
+      setDeletePendingUserId(null);
     },
     onError: (error) => {
       toast.error(getUserErrorMessage(error));
@@ -131,9 +139,15 @@ export default function AccountsManagementPage() {
   });
   const terminateSessionMutation = useMutation({
     mutationFn: terminateUserSession,
+    onMutate: async (userId) => {
+      setTerminatePendingUserId(userId);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("Session terminated successfully.");
+    },
+    onSettled: () => {
+      setTerminatePendingUserId(null);
     },
     onError: (error) => {
       toast.error(getUserErrorMessage(error));
@@ -337,10 +351,12 @@ export default function AccountsManagementPage() {
         />
       ) : (
         <DataTable headers={["Name", "Role", "Status", "Actions"]}>
-          {userRows.map((user) => {
-            const isActive = user.status === USER_STATUS.ACTIVE;
+            {userRows.map((user) => {
+              const isActive = user.status === USER_STATUS.ACTIVE;
+              const isDeletingCurrentUser = deletePendingUserId === user.id;
+              const isTerminatingCurrentUser = terminatePendingUserId === user.id;
 
-            return (
+              return (
               <tr
                 key={user.id}
                 className="border-b border-slate-200 last:border-0"
@@ -414,12 +430,19 @@ export default function AccountsManagementPage() {
                                 <Button
                                   className="cursor-pointer"
                                   variant="danger"
-                                  disabled={deleteUserMutation.isPending}
+                                  disabled={isDeletingCurrentUser}
                                   onClick={() =>
                                     deleteUserMutation.mutate(user.id)
                                   }
                                 >
-                                  Delete account
+                                  {isDeletingCurrentUser ? (
+                                    <>
+                                      Deleting
+                                      <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
+                                    </>
+                                  ) : (
+                                    "Delete account"
+                                  )}
                                 </Button>
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -431,10 +454,10 @@ export default function AccountsManagementPage() {
                       className="cursor-pointer"
                       variant="danger"
                       size="sm"
-                      disabled={!isActive || terminateSessionMutation.isPending}
+                      disabled={!isActive || isTerminatingCurrentUser}
                       onClick={() => terminateSessionMutation.mutate(user.id)}
                     >
-                      {terminateSessionMutation.isPending ? (
+                      {isTerminatingCurrentUser ? (
                         <>
                           Terminating
                           <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />

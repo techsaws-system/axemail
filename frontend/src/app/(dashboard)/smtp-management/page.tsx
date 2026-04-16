@@ -99,6 +99,9 @@ export default function SenderInfrastructurePage() {
   const [gmailLimit, setGmailLimit] = useState("");
   const [domainLimit, setDomainLimit] = useState("");
   const [serverLimit, setServerLimit] = useState("");
+  const [deletePendingAccountId, setDeletePendingAccountId] = useState<string | null>(null);
+  const [testPendingAccountId, setTestPendingAccountId] = useState<string | null>(null);
+  const [policyPendingType, setPolicyPendingType] = useState<"GMAIL" | "DOMAIN" | "MASK" | null>(null);
   const metricsQuery = useQuery({
     queryKey: ["sender-account-metrics"],
     queryFn: getSenderAccountMetrics,
@@ -158,6 +161,9 @@ export default function SenderInfrastructurePage() {
   });
   const deleteSenderAccountMutation = useMutation({
     mutationFn: deleteSenderAccount,
+    onMutate: async (senderAccountId) => {
+      setDeletePendingAccountId(senderAccountId);
+    },
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["sender-accounts"] }),
@@ -165,12 +171,18 @@ export default function SenderInfrastructurePage() {
       ]);
       toast.success("Sender account deleted.");
     },
+    onSettled: () => {
+      setDeletePendingAccountId(null);
+    },
     onError: (error) => {
       toast.error(getUserErrorMessage(error));
     },
   });
   const testSenderAccountMutation = useMutation({
     mutationFn: testSenderAccount,
+    onMutate: async (senderAccountId) => {
+      setTestPendingAccountId(senderAccountId);
+    },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["sender-accounts"] });
       if (result.healthStatus === SENDER_HEALTH_STATUS.ACTIVE) {
@@ -178,6 +190,9 @@ export default function SenderInfrastructurePage() {
         return;
       }
       toast.error(result.lastHealthMessage ?? "Account verification failed.");
+    },
+    onSettled: () => {
+      setTestPendingAccountId(null);
     },
     onError: (error) => {
       toast.error(getUserErrorMessage(error));
@@ -191,6 +206,9 @@ export default function SenderInfrastructurePage() {
       senderType: "GMAIL" | "DOMAIN" | "MASK";
       dailyLimit: number;
     }) => updateSenderPolicy(senderType, dailyLimit),
+    onMutate: async ({ senderType }) => {
+      setPolicyPendingType(senderType);
+    },
     onSuccess: async (_, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["sender-policies"] }),
@@ -202,6 +220,9 @@ export default function SenderInfrastructurePage() {
           ? "Server policy updated."
           : "Daily sending policy updated.",
       );
+    },
+    onSettled: () => {
+      setPolicyPendingType(null);
     },
     onError: (error) => {
       toast.error(getUserErrorMessage(error));
@@ -566,7 +587,7 @@ export default function SenderInfrastructurePage() {
             <Button
               className={`mt-6 ${primaryButtonClassName}`}
               disabled={
-                savePolicyMutation.isPending ||
+                policyPendingType === "GMAIL" ||
                 !Number(gmailLimit || gmailPolicy?.dailyLimit)
               }
               onClick={() =>
@@ -578,7 +599,7 @@ export default function SenderInfrastructurePage() {
                 })
               }
             >
-              {savePolicyMutation.isPending ? (
+              {policyPendingType === "GMAIL" ? (
                 <>
                   Saving
                   <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
@@ -605,7 +626,7 @@ export default function SenderInfrastructurePage() {
             <Button
               className={`mt-6 ${primaryButtonClassName}`}
               disabled={
-                savePolicyMutation.isPending ||
+                policyPendingType === "DOMAIN" ||
                 !Number(domainLimit || domainPolicy?.dailyLimit)
               }
               onClick={() =>
@@ -617,7 +638,7 @@ export default function SenderInfrastructurePage() {
                 })
               }
             >
-              {savePolicyMutation.isPending ? (
+              {policyPendingType === "DOMAIN" ? (
                 <>
                   Saving
                   <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
@@ -644,7 +665,7 @@ export default function SenderInfrastructurePage() {
             <Button
               className={`mt-6 ${primaryButtonClassName}`}
               disabled={
-                savePolicyMutation.isPending ||
+                policyPendingType === "MASK" ||
                 !Number(serverLimit || serverPolicy?.dailyLimit)
               }
               onClick={() =>
@@ -656,7 +677,7 @@ export default function SenderInfrastructurePage() {
                 })
               }
             >
-              {savePolicyMutation.isPending ? (
+              {policyPendingType === "MASK" ? (
                 <>
                   Saving
                   <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
@@ -690,6 +711,10 @@ export default function SenderInfrastructurePage() {
             ]}
           >
             {smtpAccounts.map((account) => (
+              (() => {
+                const isTestingCurrentAccount = testPendingAccountId === account.id;
+                const isDeletingCurrentAccount = deletePendingAccountId === account.id;
+                return (
               <tr
                 key={account.id}
                 className="border-b border-slate-200 last:border-0"
@@ -741,12 +766,12 @@ export default function SenderInfrastructurePage() {
                       variant="outline"
                       className="cursor-pointer"
                       size="sm"
-                      disabled={testSenderAccountMutation.isPending}
+                      disabled={isTestingCurrentAccount}
                       onClick={() =>
                         testSenderAccountMutation.mutate(account.id)
                       }
                     >
-                      {testSenderAccountMutation.isPending ? (
+                      {isTestingCurrentAccount ? (
                         <>
                           Testing
                           <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
@@ -783,12 +808,19 @@ export default function SenderInfrastructurePage() {
                             <Button
                               variant="danger"
                               className="cursor-pointer"
-                              disabled={deleteSenderAccountMutation.isPending}
+                              disabled={isDeletingCurrentAccount}
                               onClick={() =>
                                 deleteSenderAccountMutation.mutate(account.id)
                               }
                             >
-                              Delete account
+                              {isDeletingCurrentAccount ? (
+                                <>
+                                  Deleting
+                                  <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
+                                </>
+                              ) : (
+                                "Delete account"
+                              )}
                             </Button>
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -797,6 +829,8 @@ export default function SenderInfrastructurePage() {
                   </div>
                 </td>
               </tr>
+                );
+              })()
             ))}
           </DataTable>
         )}
