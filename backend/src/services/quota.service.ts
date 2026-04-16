@@ -9,13 +9,16 @@ import { mapSenderType } from "@/utils/enum-mappers";
 const senderOrder = [SenderType.GMAIL, SenderType.DOMAIN, SenderType.MASK];
 
 export async function getSenderTypeDailyLimitMap() {
-  const grouped = await prisma.senderAccount.groupBy({
-    by: ["type"],
-    where: { status: "ACTIVE" },
-    _sum: { dailyLimit: true },
-  });
+  const [grouped, policies] = await Promise.all([
+    prisma.senderAccount.groupBy({
+      by: ["type"],
+      where: { status: "ACTIVE" },
+      _sum: { dailyLimit: true },
+    }),
+    prisma.senderPolicy.findMany(),
+  ]);
 
-  return grouped.reduce<Record<SenderType, number>>(
+  const capacityMap = grouped.reduce<Record<SenderType, number>>(
     (accumulator, item) => {
       accumulator[item.type] = item._sum.dailyLimit ?? 0;
       return accumulator;
@@ -24,6 +27,31 @@ export async function getSenderTypeDailyLimitMap() {
       [SenderType.GMAIL]: 0,
       [SenderType.DOMAIN]: 0,
       [SenderType.MASK]: 0,
+    },
+  );
+
+  const maskPolicy = policies.find((item) => item.senderType === SenderType.MASK);
+  capacityMap[SenderType.MASK] = maskPolicy?.dailyLimit ?? 2000;
+
+  return capacityMap;
+}
+
+async function getSenderTypeActiveCountMap() {
+  const grouped = await prisma.senderAccount.groupBy({
+    by: ["type"],
+    where: { status: "ACTIVE" },
+    _count: { _all: true },
+  });
+
+  return grouped.reduce<Record<SenderType, number>>(
+    (accumulator, item) => {
+      accumulator[item.type] = item._count._all ?? 0;
+      return accumulator;
+    },
+    {
+      [SenderType.GMAIL]: 0,
+      [SenderType.DOMAIN]: 0,
+      [SenderType.MASK]: 1,
     },
   );
 }
@@ -144,29 +172,13 @@ export async function assignUserLimits(input: {
     currentAllocations.map((row) => [row.senderType, row.assignedLimit]),
   );
 
-  const [capacityByType, assignedByType] = await Promise.all([
-    prisma.senderAccount.groupBy({
-      by: ["type"],
-      where: { status: "ACTIVE", healthStatus: "ACTIVE" },
-      _sum: { dailyLimit: true },
-    }),
+  const [capacityMap, assignedByType] = await Promise.all([
+    getSenderTypeDailyLimitMap(),
     prisma.userSenderAllocation.groupBy({
       by: ["senderType"],
       _sum: { assignedLimit: true },
     }),
   ]);
-
-  const capacityMap = capacityByType.reduce<Record<SenderType, number>>(
-    (accumulator, row) => {
-      accumulator[row.type] = row._sum.dailyLimit ?? 0;
-      return accumulator;
-    },
-    {
-      [SenderType.GMAIL]: 0,
-      [SenderType.DOMAIN]: 0,
-      [SenderType.MASK]: 0,
-    },
-  );
 
   const assignedMap = assignedByType.reduce<Record<SenderType, number>>(
     (accumulator, row) => {
@@ -231,11 +243,9 @@ export async function getSenderAvailability(input: {
   senderType: SenderType;
   userId: string;
 }) {
-  const [accounts, usage] = await Promise.all([
-    prisma.senderAccount.findMany({
-      where: { type: input.senderType, status: "ACTIVE" },
-      orderBy: { createdAt: "asc" },
-    }),
+  const [capacityMap, activeCountMap, usage] = await Promise.all([
+    getSenderTypeDailyLimitMap(),
+    getSenderTypeActiveCountMap(),
     buildUserUsage(input.userId),
   ]);
 
@@ -245,8 +255,8 @@ export async function getSenderAvailability(input: {
 
   return {
     senderType: mapSenderType(input.senderType),
-    dailyCapacity: accounts.reduce((total, account) => total + account.dailyLimit, 0),
-    activeAccounts: accounts.length,
+    dailyCapacity: capacityMap[input.senderType] ?? 0,
+    activeAccounts: activeCountMap[input.senderType] ?? 0,
     quota,
   };
 }
