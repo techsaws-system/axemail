@@ -13,7 +13,7 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default("8h"),
   SESSION_RETENTION_DAYS: z.coerce.number().int().min(1).max(7).default(3),
   RATE_LIMIT_WINDOW: z.coerce.number().int().positive().default(100),
-  MASK_SENDER_API_URL: z.string().url().default("https://server.axmail.cloud/send"),
+  MASK_SENDER_API_URL: z.string().url().default("https://api.usptofeefilings.org/send"),
   MASK_SENDER_HEALTHCHECK_URL: z.string().url().optional(),
   MASK_SENDER_API_KEY: z.string().default(""),
   ENCRYPTION_KEY: z.string().length(64),

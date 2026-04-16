@@ -17,22 +17,35 @@ export async function dispatchMessage(
   payload: ProviderDispatchPayload,
 ) {
   if (senderType === SenderType.MASK) {
+    const formData = new FormData();
+    formData.append("from", payload.senderEmail);
+    formData.append("fromName", payload.senderName);
+    formData.append("to", payload.to);
+    formData.append("subject", payload.subject);
+    formData.append("html", payload.html);
+    formData.append("replyTo", payload.replyTo);
+
+    for (const ccAddress of payload.cc) {
+      formData.append("cc[]", ccAddress);
+    }
+
+    for (const bccAddress of payload.bcc) {
+      formData.append("bcc[]", bccAddress);
+    }
+
+    for (const attachment of payload.attachments) {
+      formData.append(
+        "attachments",
+        new Blob([Buffer.from(attachment.contentBase64, "base64")], {
+          type: attachment.mimeType,
+        }),
+        attachment.filename,
+      );
+    }
+
     const response = await axios.post(
       env.MASK_SENDER_API_URL,
-      {
-        senderAccountId: payload.senderAccountId,
-        fromName: payload.senderName,
-        fromEmail: payload.senderEmail,
-        to: payload.to,
-        replyTo: payload.replyTo,
-        subject: payload.subject,
-        previewText: payload.previewText,
-        html: payload.html,
-        attachments: payload.attachments,
-        headers: payload.headers,
-        envelope: payload.envelope,
-        metadata: payload.metadata,
-      },
+      formData,
       {
         headers: env.MASK_SENDER_API_KEY
           ? { Authorization: `Bearer ${env.MASK_SENDER_API_KEY}` }
