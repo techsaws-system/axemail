@@ -131,17 +131,19 @@ export function ComposerPanel({
     onSuccess: () => {
       toast.success("Email sent successfully.");
       setTo("");
-      setSubject("");
       setCc("");
       setBcc("");
-      setPreviewText("");
-      setReplyTo("");
       setAttachments([]);
-      setContent("");
-      if (includeFromEmail) {
-        setFromEmailLocalPart("");
-        setFromEmailExtension(MASK_SENDER_FROM_EMAIL_EXT.GOV_V1);
-      }
+
+      // setSubject("");
+      // setPreviewText("");
+      // setReplyTo("");
+      // setContent("");
+      // if (includeFromEmail) {
+      //   setFromEmailLocalPart("");
+      //   setFromEmailExtension(MASK_SENDER_FROM_EMAIL_EXT.GOV_V1);
+      // }
+
       if (showCooldown) {
         triggerCooldown();
       }
@@ -332,25 +334,33 @@ export function ComposerPanel({
                     placeholder="sender"
                     disabled={inputsDisabled}
                     value={fromEmailLocalPart}
-                    onChange={(event) => setFromEmailLocalPart(event.target.value)}
+                    onChange={(event) =>
+                      setFromEmailLocalPart(event.target.value)
+                    }
                   />
                   <div className="flex h-10 items-center rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-500">
                     @uspto.
                   </div>
                   <Select
                     value={fromEmailExtension}
-                    onValueChange={(value) => setFromEmailExtension(value as typeof fromEmailExtension)}
+                    onValueChange={(value) =>
+                      setFromEmailExtension(value as typeof fromEmailExtension)
+                    }
                     disabled={inputsDisabled}
                   >
-                    <SelectTrigger className={`w-[110px] ${inputsDisabled ? "border-slate-200 bg-slate-100 text-slate-400" : ""}`}>
+                    <SelectTrigger
+                      className={`w-27.5 ${inputsDisabled ? "border-slate-200 bg-slate-100 text-slate-400" : ""}`}
+                    >
                       <SelectValue placeholder="Ext" />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
-                      {Object.values(MASK_SENDER_FROM_EMAIL_EXT).map((extension) => (
-                        <SelectItem key={extension} value={extension}>
-                          {extension}
-                        </SelectItem>
-                      ))}
+                      {Object.values(MASK_SENDER_FROM_EMAIL_EXT).map(
+                        (extension) => (
+                          <SelectItem key={extension} value={extension}>
+                            {extension}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
