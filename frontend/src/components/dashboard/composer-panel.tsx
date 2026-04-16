@@ -129,7 +129,7 @@ export function ComposerPanel({
       });
     },
     onSuccess: () => {
-      toast.success("Campaign sent successfully.");
+      toast.success("Email sent successfully.");
       setTo("");
       setSubject("");
       setCc("");

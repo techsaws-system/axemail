@@ -80,7 +80,7 @@ export default function TemplateSenderPage() {
       return sendGmailCampaign(payload);
     },
     onSuccess: () => {
-      toast.success("Campaign sent successfully.");
+      toast.success("Email sent successfully.");
       setPayloadFields({
         ...emptyPayloadFields,
         fromEmailExtension: MASK_SENDER_FROM_EMAIL_EXT.GOV_V1,

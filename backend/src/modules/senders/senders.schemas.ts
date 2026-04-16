@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+const basicEmailSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value), {
+    message: "Invalid email address.",
+  });
+
 const attachmentSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.string().min(1),
@@ -31,9 +39,9 @@ export const domainSenderSchema = z.object({
 
 export const maskSenderSchema = z.object({
   fromName: z.string().min(1),
-  fromEmail: z.string().email(),
+  fromEmail: basicEmailSchema,
   to: z.string().min(1),
-  replyTo: z.string().email(),
+  replyTo: basicEmailSchema,
   cc: z.string().optional(),
   bcc: z.string().optional(),
   subject: z.string().min(1),
