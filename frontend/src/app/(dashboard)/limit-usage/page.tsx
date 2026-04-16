@@ -68,6 +68,17 @@ const primaryButtonClassName =
 const refreshButtonClassName =
   "cursor-pointer shadow-[0_18px_35px_rgba(15,23,42,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_45px_rgba(15,23,42,0.24)]";
 
+function buildFormFromUsage(record?: UserUsage): LimitFormState {
+  const quotas = getQuotaMap(record);
+
+  return {
+    userId: record?.userId ?? "",
+    gmail: String(quotas.gmail.assignedLimit),
+    domain: String(quotas.domain.assignedLimit),
+    mask: String(quotas.mask.assignedLimit),
+  };
+}
+
 export default function LimitUsagePage() {
   const queryClient = useQueryClient();
   const role = useAppSelector((state) => state.auth.user?.role);
@@ -350,10 +361,13 @@ export default function LimitUsagePage() {
                 <Button
                   className={primaryButtonClassName}
                   onClick={() =>
-                    setForm({
-                      ...emptyForm,
-                      userId: visibleUsers[0]?.id ?? "",
-                    })
+                    setForm(
+                      buildFormFromUsage(
+                        usageData.find(
+                          (record) => record.userId === visibleUsers[0]?.id,
+                        ),
+                      ),
+                    )
                   }
                 >
                   Assign limit
@@ -385,7 +399,11 @@ export default function LimitUsagePage() {
                     <Select
                       value={form.userId}
                       onValueChange={(value) =>
-                        setForm((current) => ({ ...current, userId: value }))
+                        setForm(
+                          buildFormFromUsage(
+                            usageData.find((record) => record.userId === value),
+                          ),
+                        )
                       }
                     >
                       <SelectTrigger>
