@@ -24,20 +24,30 @@ type SenderAccountDto = {
 };
 
 export async function getSenderAccountMetrics() {
-  const accounts = await prisma.senderAccount.findMany();
+  const [accounts, policies] = await Promise.all([
+    prisma.senderAccount.findMany(),
+    prisma.senderPolicy.findMany(),
+  ]);
 
   const gmailAccounts = accounts.filter((item) => item.type === SenderType.GMAIL);
   const domainAccounts = accounts.filter((item) => item.type === SenderType.DOMAIN);
   const serverAccounts = accounts.filter((item) => item.type === SenderType.MASK);
+  const maskPolicy = policies.find((item) => item.senderType === SenderType.MASK);
+  const serverDailyLimit = maskPolicy?.dailyLimit ?? defaultDailyLimit(SenderType.MASK);
+  const totalServers = 1;
+  const serverTotalCapacity = serverDailyLimit * totalServers;
 
   return {
     totalGmailAccounts: gmailAccounts.length,
     totalDomainAccounts: domainAccounts.length,
-    totalServers: serverAccounts.length,
+    totalServers,
     gmailDailyCapacity: gmailAccounts.reduce((total, item) => total + item.dailyLimit, 0),
     domainDailyCapacity: domainAccounts.reduce((total, item) => total + item.dailyLimit, 0),
-    serverTotalCapacity: serverAccounts.reduce((total, item) => total + item.dailyLimit, 0),
-    totalCapacity: accounts.reduce((total, item) => total + item.dailyLimit, 0),
+    serverTotalCapacity,
+    totalCapacity:
+      gmailAccounts.reduce((total, item) => total + item.dailyLimit, 0) +
+      domainAccounts.reduce((total, item) => total + item.dailyLimit, 0) +
+      serverTotalCapacity,
   };
 }
 

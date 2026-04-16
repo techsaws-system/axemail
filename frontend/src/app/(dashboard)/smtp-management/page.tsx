@@ -102,6 +102,7 @@ export default function SenderInfrastructurePage() {
   const [deletePendingAccountId, setDeletePendingAccountId] = useState<string | null>(null);
   const [testPendingAccountId, setTestPendingAccountId] = useState<string | null>(null);
   const [policyPendingType, setPolicyPendingType] = useState<"GMAIL" | "DOMAIN" | "MASK" | null>(null);
+  const [isTestingMaskServer, setIsTestingMaskServer] = useState(false);
   const metricsQuery = useQuery({
     queryKey: ["sender-account-metrics"],
     queryFn: getSenderAccountMetrics,
@@ -228,6 +229,27 @@ export default function SenderInfrastructurePage() {
       toast.error(getUserErrorMessage(error));
     },
   });
+  const testMaskServer = async () => {
+    setIsTestingMaskServer(true);
+    try {
+      const result = await maskHealthQuery.refetch();
+      if (!result.data) {
+        toast.error("Mask server test failed.");
+        return;
+      }
+
+      if (result.data.status === "active") {
+        toast.success("Mask server test completed successfully.");
+        return;
+      }
+
+      toast.error("Mask server is not working.");
+    } catch (error) {
+      toast.error(getUserErrorMessage(error));
+    } finally {
+      setIsTestingMaskServer(false);
+    }
+  };
 
   const smtpAccounts = useMemo(
     () =>
@@ -884,9 +906,19 @@ export default function SenderInfrastructurePage() {
             </div>
             <Button
               className={cn("mt-6", primaryButtonClassName)}
-              onClick={() => maskHealthQuery.refetch()}
+              disabled={isTestingMaskServer}
+              onClick={() => {
+                void testMaskServer();
+              }}
             >
-              Test mask server
+              {isTestingMaskServer ? (
+                <>
+                  Testing
+                  <LoaderCircle className="ml-2 h-4 w-4 animate-spin" />
+                </>
+              ) : (
+                "Test mask server"
+              )}
             </Button>
           </div>
         </div>
