@@ -97,6 +97,41 @@ export type OverviewResponse = {
   };
 };
 
+export type ContentCheckSection = {
+  score: number;
+  status: "strong" | "moderate" | "risky";
+  findings: string[];
+};
+
+export type ContentCheckSignal = {
+  tone: "positive" | "warning" | "risk";
+  area: "from_name" | "subject" | "preview_text" | "message";
+  label: string;
+  detail: string;
+};
+
+export type ContentCheckResult = {
+  score: number;
+  riskLevel: "low" | "medium" | "high";
+  summary: string;
+  sections: {
+    fromName: ContentCheckSection;
+    subject: ContentCheckSection;
+    previewText: ContentCheckSection;
+    message: ContentCheckSection;
+  };
+  suggestions: string[];
+  signals: ContentCheckSignal[];
+  metrics: {
+    messageWordCount: number;
+    linkCount: number;
+    exclamationCount: number;
+    allCapsWordCount: number;
+    spamPhraseHits: number;
+    legalToneHits: number;
+  };
+};
+
 export type AuthSessionResponse = {
   accessToken: string;
   refreshToken: string;

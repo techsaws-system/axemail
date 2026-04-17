@@ -4,6 +4,7 @@ import helmet from "helmet";
 
 import { env } from "@/config/env";
 import { authRouter } from "@/modules/auth/auth.routes";
+import { contentCheckerRouter } from "@/modules/content-checker/content-checker.routes";
 import { healthRouter } from "@/modules/health/health.routes";
 import { senderAccountsRouter } from "@/modules/sender-accounts/sender-accounts.routes";
 import { sendersRouter } from "@/modules/senders/senders.routes";
@@ -40,6 +41,7 @@ export function createApp() {
   app.use("/api", authRouter);
   app.use("/api", usersRouter);
   app.use("/api", usageRouter);
+  app.use("/api", contentCheckerRouter);
   app.use("/api", senderAccountsRouter);
   app.use("/api", sendersRouter);
 

@@ -1,4 +1,5 @@
 import {
+  FileSearch,
   LayoutDashboard,
   Layers3,
   Mail,
@@ -43,7 +44,10 @@ export const dashboardNavigation: DashboardNavSection[] = [
   },
   {
     categoryTitle: "Features",
-    items: [{ title: "Template Sender", href: APP_ROUTE.TEMPLATE_SENDER, icon: TableProperties }],
+    items: [
+      { title: "Template Sender", href: APP_ROUTE.TEMPLATE_SENDER, icon: TableProperties },
+      { title: "Content Checker", href: APP_ROUTE.CONTENT_CHECKER, icon: FileSearch },
+    ],
   },
   {
     categoryTitle: "Administration",
@@ -65,6 +69,7 @@ export const dashboardPageTitles: Record<string, { title: string; description: s
   [APP_ROUTE.DOMAIN_SENDER]: { title: "Domain Sender", description: "Manage domain campaigns with controlled pacing." },
   [APP_ROUTE.MASK_SENDER]: { title: "Mask Sender", description: "Send alias-based campaigns with masked identities." },
   [APP_ROUTE.TEMPLATE_SENDER]: { title: "Template Sender", description: "Launch approved templates with sender-specific delivery controls." },
+  [APP_ROUTE.CONTENT_CHECKER]: { title: "Content Checker", description: "Review subject, preview text, and message spam risk before sending." },
   [APP_ROUTE.ACCOUNTS]: { title: "Accounts Management", description: "User access, status, and role administration." },
   [APP_ROUTE.SMTP_MANAGEMENT]: { title: "Sender Infrastructure", description: "Manage sender accounts, daily limits, and mask server health." },
   [APP_ROUTE.SETTINGS]: { title: "Settings", description: "Profile preferences and account credentials." },

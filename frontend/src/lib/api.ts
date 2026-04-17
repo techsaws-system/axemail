@@ -3,6 +3,7 @@
 import { apiRequest } from "@/lib/api-request";
 import type {
   AuthSessionResponse,
+  ContentCheckResult,
   MaskServerHealthRecord,
   OverviewResponse,
   ProfileRecord,
@@ -201,6 +202,19 @@ export function updateSenderPolicy(senderType: "GMAIL" | "DOMAIN" | "MASK", dail
 
 export function getMaskServerHealth() {
   return apiRequest<MaskServerHealthRecord>({ path: "/api/mask-server/health" });
+}
+
+export function checkContent(input: {
+  fromName: string;
+  subject: string;
+  previewText?: string;
+  message: string;
+}) {
+  return apiRequest<ContentCheckResult>({
+    path: "/api/content-checker/check",
+    method: "POST",
+    body: input,
+  });
 }
 
 export function sendGmailCampaign(input: Record<string, unknown>) {
