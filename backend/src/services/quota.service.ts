@@ -1,4 +1,4 @@
-import { Prisma, Role, SenderType } from "@prisma/client";
+import { DeliveryStatus, Role, SenderType } from "@prisma/client";
 
 import { prisma } from "@/config/prisma";
 import type { SenderQuotaDto, UserUsageDto } from "@/types/api.types";
@@ -7,6 +7,7 @@ import { startOfTodayUtc } from "@/utils/date";
 import { mapSenderType } from "@/utils/enum-mappers";
 
 const senderOrder = [SenderType.GMAIL, SenderType.DOMAIN, SenderType.MASK];
+const countedDeliveryStatuses = [DeliveryStatus.QUEUED, DeliveryStatus.SENT] as const;
 
 export async function getSenderTypeDailyLimitMap() {
   const [grouped, policies] = await Promise.all([
@@ -82,34 +83,21 @@ export async function buildUserUsage(userId: string): Promise<UserUsageDto> {
       where: { userId },
       orderBy: { senderType: "asc" },
     }),
-    prisma.campaignRecipient.groupBy({
-      by: ["campaignId"],
+    prisma.deliveryRecord.groupBy({
+      by: ["senderType"],
       _count: { _all: true },
       where: {
-        campaign: {
-          userId,
-          createdAt: { gte: startOfTodayUtc() },
-        },
+        userId,
+        createdAt: { gte: startOfTodayUtc() },
+        status: { in: countedDeliveryStatuses as unknown as DeliveryStatus[] },
       },
     }),
     getSenderTypeDailyLimitMap(),
   ]);
 
-  const campaignIds = usageRows.map((row) => row.campaignId);
-
-  const campaignsById =
-    campaignIds.length > 0
-      ? await prisma.campaign.findMany({
-          where: { id: { in: campaignIds } },
-          select: { id: true, senderType: true },
-        })
-      : [];
-
-  const usageByType = campaignsById.reduce<Record<SenderType, number>>(
-    (accumulator, campaign) => {
-      const campaignUsage =
-        usageRows.find((row) => row.campaignId === campaign.id)?._count._all ?? 0;
-      accumulator[campaign.senderType] += campaignUsage;
+  const usageByType = usageRows.reduce<Record<SenderType, number>>(
+    (accumulator, row) => {
+      accumulator[row.senderType] += row._count._all;
       return accumulator;
     },
     {

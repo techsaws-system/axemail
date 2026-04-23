@@ -60,38 +60,3 @@ export type OverviewDto = {
     senders: Record<SenderType, SenderAnalyticsDto>;
   };
 };
-
-export type ContentCheckSectionDto = {
-  score: number;
-  status: "strong" | "moderate" | "risky";
-  findings: string[];
-};
-
-export type ContentCheckSignalDto = {
-  tone: "positive" | "warning" | "risk";
-  area: "from_name" | "subject" | "preview_text" | "message";
-  label: string;
-  detail: string;
-};
-
-export type ContentCheckDto = {
-  score: number;
-  riskLevel: "low" | "medium" | "high";
-  summary: string;
-  sections: {
-    fromName: ContentCheckSectionDto;
-    subject: ContentCheckSectionDto;
-    previewText: ContentCheckSectionDto;
-    message: ContentCheckSectionDto;
-  };
-  suggestions: string[];
-  signals: ContentCheckSignalDto[];
-  metrics: {
-    messageWordCount: number;
-    linkCount: number;
-    exclamationCount: number;
-    allCapsWordCount: number;
-    spamPhraseHits: number;
-    legalToneHits: number;
-  };
-};

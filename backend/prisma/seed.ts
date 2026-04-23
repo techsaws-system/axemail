@@ -21,8 +21,7 @@ async function main() {
   });
 
   await prisma.userSession.deleteMany();
-  await prisma.campaignRecipient.deleteMany();
-  await prisma.campaign.deleteMany();
+  await prisma.deliveryRecord.deleteMany();
   await prisma.userSenderAllocation.deleteMany();
   await prisma.senderAccount.deleteMany();
   await prisma.senderPolicy.deleteMany();

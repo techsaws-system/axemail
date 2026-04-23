@@ -1,90 +1,98 @@
-import { CampaignStatus, Prisma, RecipientStatus, SenderType } from "@prisma/client";
+import crypto from "node:crypto";
+
+import { DeliveryStatus, Prisma, SenderType } from "@prisma/client";
 
 import { env } from "@/config/env";
 import { prisma } from "@/config/prisma";
+import { buildEmailHeaders, buildEnvelope } from "@/services/email-composer.service";
+import { resolveUserContext } from "@/services/context.service";
+import { dispatchMessage } from "@/services/sender-dispatch.service";
+import { getMaskServerHealth } from "@/services/mask-server.service";
 import type { SenderComposerPayload } from "@/types/sender.types";
 import { AppError } from "@/utils/app-error";
 import { startOfTodayUtc } from "@/utils/date";
-import { buildEmailHeaders, buildEnvelope } from "@/services/email-composer.service";
-import { resolveUserContext } from "@/services/context.service";
-import { getMaskServerHealth } from "@/services/mask-server.service";
-import { dispatchMessage } from "@/services/sender-dispatch.service";
 
-const reservedRecipientStatuses = [
-  RecipientStatus.QUEUED,
-  RecipientStatus.SENT,
-  RecipientStatus.DELIVERED,
-  RecipientStatus.OPENED,
-  RecipientStatus.CLICKED,
+const reservedDeliveryStatuses = [
+  DeliveryStatus.QUEUED,
+  DeliveryStatus.SENT,
 ] as const;
 
 export async function sendComposerCampaign(input: SenderComposerPayload) {
   const user = await resolveUserContext({ role: input.role, userId: input.userId });
+  const deliveryId = crypto.randomUUID();
 
-  const reservedCampaign = await retrySerializable(async () => {
+  const reservedDelivery = await retrySerializable(async () => {
     return prisma.$transaction(async (transaction) => {
-      return reserveCampaign(transaction, {
+      return reserveDelivery(transaction, {
+        deliveryId,
         userId: user.id,
         senderType: input.senderType,
-        fromName: input.fromName,
-        fromEmail: input.fromEmail,
         to: input.to,
-        replyTo: input.replyTo,
-        cc: splitAddresses(input.cc),
-        bcc: splitAddresses(input.bcc),
-        subject: input.subject,
-        previewText: input.previewText,
-        html: input.content,
-        attachments: input.attachments ?? [],
-        metadata: input.metadata,
       });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   });
 
-  return processCampaign(reservedCampaign.id, reservedCampaign.recipientCount);
+  return processDelivery({
+    deliveryId: reservedDelivery.id,
+    recipientCount: reservedDelivery.recipientCount,
+    userId: user.id,
+    senderType: input.senderType.toUpperCase() as SenderType,
+    fromName: input.fromName,
+    fromEmail: input.fromEmail,
+    replyTo: input.replyTo,
+    cc: splitAddresses(input.cc),
+    bcc: splitAddresses(input.bcc),
+    subject: input.subject,
+    previewText: input.previewText,
+    html: input.content,
+    attachments: input.attachments ?? [],
+  });
 }
 
-async function processCampaign(campaignId: string, recipientCount: number) {
-  const started = await prisma.campaign.updateMany({
+async function processDelivery(input: {
+  deliveryId: string;
+  recipientCount: number;
+  userId: string;
+  senderType: SenderType;
+  fromName: string;
+  fromEmail?: string;
+  replyTo: string;
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  previewText?: string;
+  html: string;
+  attachments: Array<{
+    filename: string;
+    mimeType: string;
+    size: number;
+    contentBase64: string;
+  }>;
+}) {
+  const deliveries = await prisma.deliveryRecord.findMany({
     where: {
-      id: campaignId,
-      status: CampaignStatus.QUEUED,
+      deliveryId: input.deliveryId,
+      status: DeliveryStatus.QUEUED,
     },
-    data: {
-      status: CampaignStatus.PROCESSING,
-    },
+    orderBy: { createdAt: "asc" },
   });
 
-  if (started.count === 0) {
-    throw new AppError("Campaign is not available for processing.", 409);
-  }
-
-  const campaign = await prisma.campaign.findUnique({
-    where: { id: campaignId },
-    include: {
-      recipientEvents: {
-        where: { status: RecipientStatus.QUEUED },
-        orderBy: { createdAt: "asc" },
-      },
-    },
-  });
-
-  if (!campaign) {
-    throw new AppError("Campaign not found.", 404);
+  if (!deliveries.length) {
+    throw new AppError("Delivery is not available for processing.", 409);
   }
 
   let sentCount = 0;
   let failedCount = 0;
 
-  for (let index = 0; index < campaign.recipientEvents.length; index += 1) {
-    const recipient = campaign.recipientEvents[index];
-    const isMaskSender = campaign.senderType === SenderType.MASK;
+  for (let index = 0; index < deliveries.length; index += 1) {
+    const delivery = deliveries[index];
+    const isMaskSender = input.senderType === SenderType.MASK;
 
-    if (!isMaskSender && !recipient.senderAccountId) {
-      await prisma.campaignRecipient.update({
-        where: { id: recipient.id },
+    if (!isMaskSender && !delivery.senderAccountId) {
+      await prisma.deliveryRecord.update({
+        where: { id: delivery.id },
         data: {
-          status: RecipientStatus.FAILED,
+          status: DeliveryStatus.FAILED,
           errorMessage: "Reserved sender account is missing.",
         },
       });
@@ -92,9 +100,9 @@ async function processCampaign(campaignId: string, recipientCount: number) {
       continue;
     }
 
-    const assignedAccount = recipient.senderAccountId
+    const assignedAccount = delivery.senderAccountId
       ? await prisma.senderAccount.findUnique({
-          where: { id: recipient.senderAccountId },
+          where: { id: delivery.senderAccountId },
         })
       : null;
 
@@ -104,10 +112,10 @@ async function processCampaign(campaignId: string, recipientCount: number) {
         assignedAccount.status !== "ACTIVE" ||
         assignedAccount.healthStatus !== "ACTIVE")
     ) {
-      await prisma.campaignRecipient.update({
-        where: { id: recipient.id },
+      await prisma.deliveryRecord.update({
+        where: { id: delivery.id },
         data: {
-          status: RecipientStatus.FAILED,
+          status: DeliveryStatus.FAILED,
           errorMessage: "Reserved sender account is not available.",
         },
       });
@@ -115,71 +123,74 @@ async function processCampaign(campaignId: string, recipientCount: number) {
       continue;
     }
 
-    const senderType = campaign.senderType;
     const senderEmail =
-      senderType === SenderType.MASK
-        ? campaign.fromEmail ?? ""
+      input.senderType === SenderType.MASK
+        ? input.fromEmail ?? ""
         : assignedAccount!.email;
 
     const headers = buildEmailHeaders({
-      campaignId: campaign.id,
-      recipientId: recipient.id,
-      senderType: senderType.toLowerCase(),
-      previewText: campaign.previewText ?? undefined,
+      deliveryId: input.deliveryId,
+      deliveryRecordId: delivery.id,
+      senderType: input.senderType.toLowerCase(),
+      previewText: input.previewText,
     });
 
     const dispatchPayload = {
       provider: assignedAccount?.provider ?? "mask-vps",
       senderAccountId: assignedAccount?.id ?? "mask-server",
       senderEmail,
-      senderName: campaign.fromName,
-      to: recipient.recipientEmail,
-      cc: campaign.cc,
-      bcc: campaign.bcc,
-      replyTo: campaign.replyTo,
-      subject: campaign.subject,
-      previewText: campaign.previewText ?? undefined,
-      html: campaign.contentHtml,
-      attachments: normalizeAttachments(campaign.attachments),
+      senderName: input.fromName,
+      to: delivery.recipientEmail,
+      cc: input.cc,
+      bcc: input.bcc,
+      replyTo: input.replyTo,
+      subject: input.subject,
+      previewText: input.previewText,
+      html: input.html,
+      attachments: input.attachments,
       headers,
       envelope: buildEnvelope({
         provider: assignedAccount?.provider ?? "mask-vps",
         senderAccountId: assignedAccount?.id ?? "mask-server",
         senderEmail,
-        senderName: campaign.fromName,
-        to: recipient.recipientEmail,
-        cc: campaign.cc,
-        bcc: campaign.bcc,
-        replyTo: campaign.replyTo,
-        subject: campaign.subject,
-        previewText: campaign.previewText ?? undefined,
-        html: campaign.contentHtml,
-        attachments: normalizeAttachments(campaign.attachments),
+        senderName: input.fromName,
+        to: delivery.recipientEmail,
+        cc: input.cc,
+        bcc: input.bcc,
+        replyTo: input.replyTo,
+        subject: input.subject,
+        previewText: input.previewText,
+        html: input.html,
+        attachments: input.attachments,
         headers,
         envelope: { from: senderEmail, to: [] },
         metadata: {
-          campaignId: campaign.id,
-          recipientId: recipient.id,
-          userId: campaign.userId,
+          deliveryId: input.deliveryId,
+          deliveryRecordId: delivery.id,
+          userId: input.userId,
         },
       }),
       metadata: {
-        campaignId: campaign.id,
-        recipientId: recipient.id,
-        userId: campaign.userId,
+        deliveryId: input.deliveryId,
+        deliveryRecordId: delivery.id,
+        userId: input.userId,
       },
     };
 
     try {
-      const result = await dispatchMessage(senderType, assignedAccount ?? {
-        email: senderEmail,
-        provider: "mask-vps",
-      }, dispatchPayload);
+      const result = await dispatchMessage(
+        input.senderType,
+        assignedAccount ?? {
+          email: senderEmail,
+          provider: "mask-vps",
+        },
+        dispatchPayload,
+      );
 
-      await prisma.campaignRecipient.update({
-        where: { id: recipient.id },
+      await prisma.deliveryRecord.update({
+        where: { id: delivery.id },
         data: {
-          status: RecipientStatus.SENT,
+          status: DeliveryStatus.SENT,
           providerMessageId: result.providerMessageId,
           messageIdHeader: headers["Message-ID"],
           sentAt: new Date(),
@@ -189,15 +200,15 @@ async function processCampaign(campaignId: string, recipientCount: number) {
       sentCount += 1;
     } catch (error) {
       console.error("Dispatch failed.", {
-        campaignId: campaign.id,
-        recipientId: recipient.id,
+        deliveryId: input.deliveryId,
+        deliveryRecordId: delivery.id,
         error,
       });
 
-      await prisma.campaignRecipient.update({
-        where: { id: recipient.id },
+      await prisma.deliveryRecord.update({
+        where: { id: delivery.id },
         data: {
-          status: RecipientStatus.FAILED,
+          status: DeliveryStatus.FAILED,
           messageIdHeader: headers["Message-ID"],
           errorMessage: error instanceof Error ? error.message : "Dispatch failed.",
         },
@@ -206,54 +217,35 @@ async function processCampaign(campaignId: string, recipientCount: number) {
       failedCount += 1;
     }
 
-    if ((senderType === SenderType.DOMAIN || senderType === SenderType.GMAIL) && index < campaign.recipientEvents.length - 1) {
-      await sleep(getCooldownSeconds(senderType) * 1000);
+    if (
+      (input.senderType === SenderType.DOMAIN || input.senderType === SenderType.GMAIL) &&
+      index < deliveries.length - 1
+    ) {
+      await sleep(getCooldownSeconds(input.senderType) * 1000);
     }
   }
 
   const finalStatus =
     failedCount === 0
-      ? CampaignStatus.COMPLETED
+      ? "completed"
       : sentCount === 0
-        ? CampaignStatus.FAILED
-        : CampaignStatus.PARTIAL;
-
-  await prisma.campaign.update({
-    where: { id: campaign.id },
-    data: {
-      status: finalStatus,
-      completedAt: new Date(),
-    },
-  });
+        ? "failed"
+        : "partial";
 
   return {
-    id: campaign.id,
-    status: finalStatus.toLowerCase(),
-    recipientCount,
+    id: input.deliveryId,
+    status: finalStatus,
+    recipientCount: input.recipientCount,
   };
 }
 
-async function reserveCampaign(
+async function reserveDelivery(
   transaction: Prisma.TransactionClient,
   input: {
+    deliveryId: string;
     userId: string;
     senderType: "gmail" | "domain" | "mask";
-    fromName: string;
-    fromEmail?: string;
     to: string;
-    replyTo: string;
-    cc: string[];
-    bcc: string[];
-    subject: string;
-    previewText?: string;
-    html: string;
-    attachments: Array<{
-      filename: string;
-      mimeType: string;
-      size: number;
-      contentBase64: string;
-    }>;
-    metadata?: Record<string, unknown>;
   },
 ) {
   const senderType = input.senderType.toUpperCase() as SenderType;
@@ -274,14 +266,12 @@ async function reserveCampaign(
 
   const assignedLimit = allocation?.assignedLimit ?? 0;
 
-  const reservedForUser = await transaction.campaignRecipient.count({
+  const reservedForUser = await transaction.deliveryRecord.count({
     where: {
-      campaign: {
-        userId: input.userId,
-        senderType,
-        createdAt: { gte: startOfTodayUtc() },
-      },
-      status: { in: reservedRecipientStatuses as unknown as RecipientStatus[] },
+      userId: input.userId,
+      senderType,
+      createdAt: { gte: startOfTodayUtc() },
+      status: { in: reservedDeliveryStatuses as unknown as DeliveryStatus[] },
     },
   });
 
@@ -295,35 +285,19 @@ async function reserveCampaign(
 
   const accountAssignments = await reserveSenderAccounts(transaction, senderType, recipients.length);
 
-  const campaign = await transaction.campaign.create({
-    data: {
-      senderType,
-      userId: input.userId,
-      fromName: input.fromName,
-      fromEmail: input.fromEmail,
-      replyTo: input.replyTo,
-      subject: input.subject,
-      previewText: input.previewText,
-      cc: input.cc,
-      bcc: input.bcc,
-      contentHtml: input.html,
-      attachments: input.attachments as Prisma.InputJsonValue,
-      metadata: input.metadata ? (input.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
-      status: CampaignStatus.QUEUED,
-    },
-  });
-
-  await transaction.campaignRecipient.createMany({
+  await transaction.deliveryRecord.createMany({
     data: recipients.map((recipientEmail, index) => ({
-      campaignId: campaign.id,
+      deliveryId: input.deliveryId,
+      userId: input.userId,
+      senderType,
       recipientEmail,
       senderAccountId: accountAssignments[index]?.id ?? null,
-      status: RecipientStatus.QUEUED,
+      status: DeliveryStatus.QUEUED,
     })),
   });
 
   return {
-    id: campaign.id,
+    id: input.deliveryId,
     recipientCount: recipients.length,
   };
 }
@@ -345,13 +319,11 @@ async function reserveSenderAccounts(
     });
 
     const dailyLimit = policy?.dailyLimit ?? 2000;
-    const usedToday = await transaction.campaignRecipient.count({
+    const usedToday = await transaction.deliveryRecord.count({
       where: {
-        campaign: {
-          senderType: SenderType.MASK,
-          createdAt: { gte: startOfTodayUtc() },
-        },
-        status: { in: reservedRecipientStatuses as unknown as RecipientStatus[] },
+        senderType: SenderType.MASK,
+        createdAt: { gte: startOfTodayUtc() },
+        status: { in: reservedDeliveryStatuses as unknown as DeliveryStatus[] },
       },
     });
 
@@ -376,13 +348,13 @@ async function reserveSenderAccounts(
     throw new AppError("No active sender accounts available.", 409);
   }
 
-  const usageRows = await transaction.campaignRecipient.groupBy({
+  const usageRows = await transaction.deliveryRecord.groupBy({
     by: ["senderAccountId"],
     _count: { _all: true },
     where: {
       senderAccountId: { in: accounts.map((account) => account.id) },
       createdAt: { gte: startOfTodayUtc() },
-      status: { in: reservedRecipientStatuses as unknown as RecipientStatus[] },
+      status: { in: reservedDeliveryStatuses as unknown as DeliveryStatus[] },
     },
   });
 
@@ -430,7 +402,11 @@ async function retrySerializable<T>(callback: () => Promise<T>, maxAttempts = 3)
     } catch (error) {
       attempt += 1;
 
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2034" || attempt >= maxAttempts) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== "P2034" ||
+        attempt >= maxAttempts
+      ) {
         throw error;
       }
     }
@@ -459,19 +435,6 @@ function getCooldownSeconds(senderType: SenderType) {
     weights.unshift(20, 35, 50, 70);
   }
   return weights[Math.floor(Math.random() * weights.length)] ?? 20;
-}
-
-function normalizeAttachments(value: Prisma.JsonValue | null) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value as Array<{
-    filename: string;
-    mimeType: string;
-    size: number;
-    contentBase64: string;
-  }>;
 }
 
 function sleep(timeoutMs: number) {

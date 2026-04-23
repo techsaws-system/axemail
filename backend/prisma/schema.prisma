@@ -36,39 +36,26 @@ enum SenderHealthStatus {
   NOT_WORKING
 }
 
-enum CampaignStatus {
-  QUEUED
-  PROCESSING
-  COMPLETED
-  FAILED
-  PARTIAL
-}
-
-enum RecipientStatus {
+enum DeliveryStatus {
   QUEUED
   SENT
   FAILED
-  BOUNCED
-  DELIVERED
-  OPENED
-  CLICKED
 }
 
 model User {
-  id               String               @id @default(cuid())
-  firstName        String
-  lastName         String
-  pseudoName       String
-  email            String               @unique
-  passwordHash     String
-  role             Role
-  status           UserStatus           @default(ACTIVE)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  allocations      UserSenderAllocation[]
-  createdCampaigns Campaign[]           @relation("CampaignCreatedBy")
-  sessions         UserSession[]
-  updatedCampaigns Campaign[]           @relation("CampaignUpdatedBy")
+  id          String                 @id @default(cuid())
+  firstName   String
+  lastName    String
+  pseudoName  String
+  email       String                 @unique
+  passwordHash String
+  role        Role
+  status      UserStatus             @default(ACTIVE)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  allocations UserSenderAllocation[]
+  deliveries  DeliveryRecord[]
+  sessions    UserSession[]
 }
 
 model UserSession {
@@ -104,7 +91,7 @@ model SenderAccount {
   metadata             Json?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
-  recipientEvents      CampaignRecipient[]
+  deliveries           DeliveryRecord[]
 
   @@unique([type, email])
 }
@@ -129,44 +116,24 @@ model UserSenderAllocation {
   @@unique([userId, senderType])
 }
 
-model Campaign {
-  id              String              @id @default(cuid())
-  senderType      SenderType
-  userId          String
-  fromName        String
-  fromEmail       String?
-  replyTo         String
-  subject         String
-  previewText     String?
-  cc              String[]
-  bcc             String[]
-  contentHtml     String
-  attachments     Json?
-  status          CampaignStatus      @default(QUEUED)
-  metadata        Json?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  completedAt     DateTime?
-  createdBy       User                @relation("CampaignCreatedBy", fields: [userId], references: [id], onDelete: Cascade)
-  updatedBy       User?               @relation("CampaignUpdatedBy", fields: [updatedById], references: [id])
-  updatedById     String?
-  recipientEvents CampaignRecipient[]
-}
+model DeliveryRecord {
+  id                String          @id @default(cuid())
+  deliveryId        String
+  userId            String
+  senderType        SenderType
+  senderAccountId   String?
+  recipientEmail    String
+  status            DeliveryStatus  @default(QUEUED)
+  providerMessageId String?
+  messageIdHeader   String?
+  errorMessage      String?
+  sentAt            DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  senderAccount     SenderAccount?  @relation(fields: [senderAccountId], references: [id], onDelete: SetNull)
 
-model CampaignRecipient {
-  id                 String           @id @default(cuid())
-  campaignId         String
-  senderAccountId    String?
-  recipientEmail     String
-  status             RecipientStatus  @default(QUEUED)
-  providerMessageId  String?
-  messageIdHeader    String?
-  smtpEnvelope       Json?
-  emailHeaders       Json?
-  errorMessage       String?
-  sentAt             DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  campaign           Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  senderAccount      SenderAccount?   @relation(fields: [senderAccountId], references: [id], onDelete: SetNull)
+  @@index([deliveryId])
+  @@index([userId, senderType, createdAt])
+  @@index([senderAccountId, createdAt])
 }

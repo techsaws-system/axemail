@@ -75,7 +75,6 @@ export const APP_ROUTE = {
   DOMAIN_SENDER: "/domain-sender",
   MASK_SENDER: "/mask-sender",
   TEMPLATE_SENDER: "/template-sender",
-  CONTENT_CHECKER: "/content-checker",
   ACCOUNTS: "/accounts-management",
   SMTP_MANAGEMENT: "/smtp-management",
   SETTINGS: "/settings",
