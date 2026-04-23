@@ -63,7 +63,7 @@ const emptyPayloadFields: TemplatePayloadFields = {
   previewText: "",
 };
 
-export default function TemplateSenderPage() {
+export default function TemplateDispatcherPage() {
   const senderCardsQuery = useQuery({
     queryKey: ["sender-cards"],
     queryFn: getSenderCards,
@@ -248,10 +248,10 @@ export default function TemplateSenderPage() {
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <p className="text-lg font-semibold tracking-[-0.03em] text-slate-950">
-              Template delivery
+              Template dispatch
             </p>
             <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              Select the sender route, complete the required fields, and
+              Select the delivery route, complete the required fields, and
               dispatch a rendered template.
             </p>
           </div>
@@ -303,7 +303,7 @@ export default function TemplateSenderPage() {
               </p>
               <p className="mt-1 text-sm text-slate-500">
                 {cooldownActive
-                  ? "Sending is paused while the selected sender cools down."
+                  ? "Dispatch is paused while the selected route cools down."
                   : "The next send will start an automatic cooldown."}
               </p>
             </div>
@@ -330,7 +330,7 @@ export default function TemplateSenderPage() {
             </p>
             <p className="mt-1 text-sm text-slate-500">
               The selected template is rendered client-side and submitted
-              through the sender endpoint.
+              through the selected delivery endpoint.
             </p>
           </div>
           {activeQuota ? (

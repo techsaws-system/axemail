@@ -74,9 +74,9 @@ export const APP_ROUTE = {
   GMAIL_SENDER: "/gmail-sender",
   DOMAIN_SENDER: "/domain-sender",
   MASK_SENDER: "/mask-sender",
-  TEMPLATE_SENDER: "/template-sender",
+  TEMPLATE_DISPATCHER: "/template-dispatcher",
   ACCOUNTS: "/accounts-management",
-  SMTP_MANAGEMENT: "/smtp-management",
+  INFRASTRUCTURE_MANAGEMENT: "/infrastructure-management",
   SETTINGS: "/settings",
 } as const;
 

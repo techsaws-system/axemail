@@ -8,13 +8,13 @@ const protectedRoutes = [
   APP_ROUTE.GMAIL_SENDER,
   APP_ROUTE.DOMAIN_SENDER,
   APP_ROUTE.MASK_SENDER,
-  APP_ROUTE.TEMPLATE_SENDER,
+  APP_ROUTE.TEMPLATE_DISPATCHER,
   APP_ROUTE.ACCOUNTS,
-  APP_ROUTE.SMTP_MANAGEMENT,
+  APP_ROUTE.INFRASTRUCTURE_MANAGEMENT,
   APP_ROUTE.SETTINGS,
 ];
 
-const adminRoutes = [APP_ROUTE.SMTP_MANAGEMENT];
+const adminRoutes = [APP_ROUTE.INFRASTRUCTURE_MANAGEMENT];
 
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -50,9 +50,9 @@ export const config = {
     "/gmail-sender/:path*",
     "/domain-sender/:path*",
     "/mask-sender/:path*",
-    "/template-sender/:path*",
+    "/template-dispatcher/:path*",
     "/accounts-management/:path*",
-    "/smtp-management/:path*",
+    "/infrastructure-management/:path*",
     "/settings/:path*",
   ],
 };
